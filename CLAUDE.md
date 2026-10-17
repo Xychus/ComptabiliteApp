@@ -44,7 +44,7 @@ tests/                                     # miroir de src/, un projet de tests 
 infra/
   bootstrap/  modules/  envs/{dev,prod}/  keycloak/
 docs/
-  plan/PLAN.md  adr/  api/openapi.yaml  runbooks/
+  plan/PLAN.md  adr/  api/openapi.json  runbooks/
 .github/workflows/
 ```
 

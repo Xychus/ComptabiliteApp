@@ -57,6 +57,26 @@ pwsh eng/Check-Coverage.ps1 -Report coverage/Cobertura.xml
 
 Seuils : assemblies `*.Domain` ≥ 90 %, autres ≥ 75 % (le CI échoue en dessous).
 
+## API de commandes
+
+Contrat : [`docs/api/openapi.json`](docs/api/openapi.json), régénéré à chaque build et vérifié par
+le CI ([ADR 0014](docs/adr/0014-contrat-http-api-de-commandes.md)). Tout appel exige un jeton JWT
+Keycloak (audience `ledger-api`, scope `ledger:write`).
+
+```bash
+# Développement, event store en mémoire (refusé hors de l'environnement Development)
+ASPNETCORE_ENVIRONMENT=Development \
+Ledger__EventStore__Provider=InMemory \
+Ledger__Authentication__Authority=https://<keycloak>/realms/<realm> \
+dotnet run --project src/Command/Ledger.Command.Api
+
+# Image (tag = version SemVer exacte, jamais « latest »)
+docker build -f src/Command/Ledger.Command.Api/Dockerfile -t ledger-command-api:<version> .
+```
+
+En dehors du développement, la chaîne de connexion `ConnectionStrings__Ledger` (rôle `ledger_app`)
+est injectée depuis Secrets Manager. Sondes : `/health/live` et `/health/ready`.
+
 ## Versions et contributions
 
 - Versionnage [SemVer 2.0.0](https://semver.org) **par composant** (`command`, `projections`,
