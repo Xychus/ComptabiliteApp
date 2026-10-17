@@ -107,8 +107,7 @@ public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) 
 
     private static async Task<IReadOnlyList<StoredEvent>> InsertEventsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, IReadOnlyList<StoredEvent> prepared, CancellationToken cancellationToken)
     {
-        var batch = new NpgsqlBatch(connection, transaction);
-        await using var batchScope = batch.ConfigureAwait(false);
+        await using var batch = new NpgsqlBatch(connection, transaction);
         foreach (var e in prepared)
         {
             var command = new NpgsqlBatchCommand(InsertEventSql);
