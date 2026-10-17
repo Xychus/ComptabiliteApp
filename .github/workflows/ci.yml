@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-unit-tests:
+    name: Build et tests sans Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore Ledger.slnx
+      - name: Build
+        run: dotnet build Ledger.slnx --no-restore -c Release -warnaserror
+      - name: Tests (hors intégration)
+        run: >
+          dotnet test --solution Ledger.slnx --no-build -c Release
+          --filter-not-trait "Category=Integration"
+          --coverage --coverage-output-format cobertura
+          --coverage-settings "$GITHUB_WORKSPACE/coverage.config"
+          --results-directory "$GITHUB_WORKSPACE/TestResults/unit"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: coverage-unit
+          path: TestResults/unit/**/*.cobertura.xml
+          if-no-files-found: warn
+
+  integration-tests:
+    name: Tests d'intégration (Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Docker disponible
+        run: docker info --format '{{.ServerVersion}}'
+      - name: Build
+        run: dotnet build Ledger.slnx -c Release -warnaserror
+      - name: Tests d'intégration
+        run: >
+          dotnet test --solution Ledger.slnx --no-build -c Release
+          --filter-trait "Category=Integration"
+          --coverage --coverage-output-format cobertura
+          --coverage-settings "$GITHUB_WORKSPACE/coverage.config"
+          --results-directory "$GITHUB_WORKSPACE/TestResults/integration"
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: coverage-integration
+          path: TestResults/integration/**/*.cobertura.xml
+          if-no-files-found: warn
+
+  coverage:
+    name: Seuils de couverture
+    needs: [build-and-unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: coverage-*
+          path: TestResults
+      - name: Fusion des rapports
+        run: |
+          dotnet tool restore
+          dotnet tool run reportgenerator \
+            "-reports:TestResults/**/*.cobertura.xml" \
+            "-targetdir:coverage" \
+            "-reporttypes:Cobertura;MarkdownSummaryGithub"
+          cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Seuils (Domain >= 90 %, reste >= 75 %)
+        shell: pwsh
+        run: ./eng/Check-Coverage.ps1 -Report coverage/Cobertura.xml
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          build-mode: manual
+          queries: security-and-quality
+      - name: Build
+        run: dotnet build Ledger.slnx -c Release
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:csharp
