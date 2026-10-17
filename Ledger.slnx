@@ -1,0 +1,61 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Authorizer/">
+    <Project Path="src/Authorizer/Ledger.Authorizer/Ledger.Authorizer.csproj" />
+  </Folder>
+  <Folder Name="/src/Command/">
+    <Project Path="src/Command/Ledger.Command.Api/Ledger.Command.Api.csproj" />
+    <Project Path="src/Command/Ledger.Command.Application/Ledger.Command.Application.csproj" />
+    <Project Path="src/Command/Ledger.Command.Domain/Ledger.Command.Domain.csproj" />
+    <Project Path="src/Command/Ledger.Command.Infrastructure/Ledger.Command.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Contracts/">
+    <Project Path="src/Contracts/Ledger.Contracts/Ledger.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Projections/">
+    <Project Path="src/Projections/Ledger.Projections.Application/Ledger.Projections.Application.csproj" />
+    <Project Path="src/Projections/Ledger.Projections.Infrastructure/Ledger.Projections.Infrastructure.csproj" />
+    <Project Path="src/Projections/Ledger.Projections.Worker/Ledger.Projections.Worker.csproj" />
+  </Folder>
+  <Folder Name="/src/Query/">
+    <Project Path="src/Query/Ledger.Query.Api/Ledger.Query.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/SharedKernel/">
+    <Project Path="src/SharedKernel/Ledger.SharedKernel/Ledger.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/Tools/">
+    <Project Path="src/Tools/Ledger.Integrity/Ledger.Integrity.csproj" />
+    <Project Path="src/Tools/Ledger.Migrations/Ledger.Migrations.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Architecture/">
+    <Project Path="tests/Architecture/Ledger.Architecture.Tests/Ledger.Architecture.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Authorizer/">
+    <Project Path="tests/Authorizer/Ledger.Authorizer.Tests/Ledger.Authorizer.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Command/">
+    <Project Path="tests/Command/Ledger.Command.Api.Tests/Ledger.Command.Api.Tests.csproj" />
+    <Project Path="tests/Command/Ledger.Command.Application.Tests/Ledger.Command.Application.Tests.csproj" />
+    <Project Path="tests/Command/Ledger.Command.Domain.Tests/Ledger.Command.Domain.Tests.csproj" />
+    <Project Path="tests/Command/Ledger.Command.Infrastructure.Tests/Ledger.Command.Infrastructure.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Contracts/">
+    <Project Path="tests/Contracts/Ledger.Contracts.Tests/Ledger.Contracts.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Projections/">
+    <Project Path="tests/Projections/Ledger.Projections.Application.Tests/Ledger.Projections.Application.Tests.csproj" />
+    <Project Path="tests/Projections/Ledger.Projections.Infrastructure.Tests/Ledger.Projections.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Projections/Ledger.Projections.Worker.Tests/Ledger.Projections.Worker.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Query/">
+    <Project Path="tests/Query/Ledger.Query.Api.Tests/Ledger.Query.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/SharedKernel/">
+    <Project Path="tests/SharedKernel/Ledger.SharedKernel.Tests/Ledger.SharedKernel.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Tools/">
+    <Project Path="tests/Tools/Ledger.Integrity.Tests/Ledger.Integrity.Tests.csproj" />
+    <Project Path="tests/Tools/Ledger.Migrations.Tests/Ledger.Migrations.Tests.csproj" />
+  </Folder>
+</Solution>
