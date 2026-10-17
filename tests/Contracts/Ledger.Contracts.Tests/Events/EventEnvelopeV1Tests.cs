@@ -11,7 +11,7 @@ public sealed class EventEnvelopeV1Tests
     {
         using var payload = JsonDocument.Parse("""{"entityId":"ACME","period":"2026-03"}""");
         var envelope = new EventEnvelopeV1(
-            42, Guid.CreateVersion7(), "period-ACME-2026%2D03", 1, EventTypes.PeriodOpened, 1, "ACME", null,
+            42, Guid.CreateVersion7(), "period-ACME-2026-03", 1, EventTypes.PeriodOpened, 1, "ACME", null,
             new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero), "2026-03", "40.00", Guid.CreateVersion7(), null,
             "admin", new string('b', 64), null, payload.RootElement.Clone());
 
