@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Api\Ledger.Command.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Migrations\Ledger.Migrations.csproj" />
   </ItemGroup>
 
 </Project>

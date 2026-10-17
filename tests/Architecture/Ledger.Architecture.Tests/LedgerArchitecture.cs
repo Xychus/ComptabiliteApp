@@ -41,6 +41,9 @@ internal static class LedgerArchitecture
     public const string InfrastructureNamespaces =
         @"^(Npgsql|Confluent\.Kafka|Amazon|Microsoft\.AspNetCore|Microsoft\.EntityFrameworkCore|Dapper|DbUp|Testcontainers)(\..*)?$";
 
+    /// <summary>Accès aux données et aux services externes : réservés à <c>*.Infrastructure</c>, même pour la composition.</summary>
+    public const string DataAccessNamespaces = @"^(Npgsql|Confluent\.Kafka|Amazon|Microsoft\.EntityFrameworkCore|Dapper|DbUp)(\..*)?$";
+
     /// <summary>Couches de composition et de transport : rien ne doit en dépendre.</summary>
     public const string CompositionNamespaces = @"^Ledger\.[A-Za-z]+\.(Api|Worker)(\..*)?$";
 
