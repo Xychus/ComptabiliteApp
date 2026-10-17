@@ -91,6 +91,7 @@ public sealed class JournalEntryDecider(EntryRuleSet rules)
         return Events.Of(new JournalEntryPosted(command.EntryId, command.Entity, command.BusinessDate, periodId, command.Description, command.Lines));
     }
 
+    /// <summary>Décide des événements à produire pour contre-passer une écriture déjà passée.</summary>
     /// <param name="state">État courant de l'écriture d'origine.</param>
     /// <param name="command">Commande de contre-passation.</param>
     /// <param name="period">État de la période de la date de contre-passation (ADR 0008, H8).</param>
