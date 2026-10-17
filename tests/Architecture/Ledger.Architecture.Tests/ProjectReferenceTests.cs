@@ -81,7 +81,7 @@ public sealed class ProjectReferenceTests
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "Ledger.slnx")))
+            if (File.Exists(Path.Join(directory.FullName, "Ledger.slnx")))
             {
                 return directory.FullName;
             }
