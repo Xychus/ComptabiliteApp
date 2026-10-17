@@ -289,7 +289,7 @@ public abstract class EventStoreContract
     [Fact]
     public async Task Aucune_ecriture_dans_une_periode_scellee()
     {
-        await CommitOk(Event(PeriodStream("2026-03"), 1, EventTypes.PeriodOpened), Event(PeriodStream("2026-03"), 2, EventTypes.PeriodSealed));
+        await CommitOk(Event(PeriodStream("2026-03"), 1, EventTypes.PeriodOpened), Seal("2026-03", 2, eventCount: 1));
 
         var result = await Store.BeginUnitOfWork().CommitAsync(Event(Stream("a"), 1));
 
@@ -300,7 +300,7 @@ public abstract class EventStoreContract
     [Fact]
     public async Task Le_sceau_ne_concerne_que_sa_periode_et_son_entite()
     {
-        await CommitOk(Event(PeriodStream("2026-03"), 1, EventTypes.PeriodSealed));
+        await CommitOk(Seal("2026-03", 1, eventCount: 0));
 
         await CommitOk(Event(Stream("avril"), 1) with { Period = "2026-04", BusinessDate = new DateOnly(2026, 4, 1) });
         await CommitOk(Event(Stream("autre-entite"), 1) with { EntityId = _entity + "-B" });
@@ -310,11 +310,60 @@ public abstract class EventStoreContract
     public async Task Un_evenement_place_apres_le_sceau_dans_le_meme_lot_est_refuse()
     {
         var result = await Store.BeginUnitOfWork().CommitAsync(
-            Event(PeriodStream("2026-03"), 1, EventTypes.PeriodSealed),
+            Seal("2026-03", 1, eventCount: 0),
             Event(Stream("a"), 1));
 
         AssertRejected(result, EventStoreErrors.PeriodSealedCode);
         Assert.Empty(await Store.Reader.ReadStreamAsync(PeriodStream("2026-03"), Ct));
+    }
+
+    [Fact]
+    public async Task Les_hash_d_une_periode_suivent_la_sequence_globale_et_ne_concernent_qu_elle()
+    {
+        var first = await CommitOk(Event(Stream("b"), 1), Event(Stream("a"), 1));
+        var second = await CommitOk(Event(Stream("a"), 2));
+        await CommitOk(Event(Stream("avril"), 1) with { Period = "2026-04", BusinessDate = new DateOnly(2026, 4, 1) });
+        await CommitOk(Event(Stream("autre-entite"), 1) with { EntityId = _entity + "-B" });
+
+        var hashes = await Store.PeriodReader.ReadPeriodHashesAsync(_entity, "2026-03", Ct);
+
+        Assert.Equal([first[0].Hash, first[1].Hash, second[0].Hash], hashes);
+        Assert.Empty(await Store.PeriodReader.ReadPeriodHashesAsync(_entity, "2026-05", Ct));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task Un_sceau_qui_ne_compte_pas_les_evenements_de_la_periode_est_un_conflit(long eventCount)
+    {
+        await CommitOk(Event(Stream("a"), 1), Event(Stream("b"), 1));
+
+        var result = await Store.BeginUnitOfWork().CommitAsync(Seal("2026-03", 1, eventCount));
+
+        AssertRejected(result, EventStoreErrors.ConcurrencyConflictCode);
+        Assert.Empty(await Store.Reader.ReadStreamAsync(PeriodStream("2026-03"), Ct));
+        await CommitOk(Event(Stream("a"), 2));
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"eventCount":"0"}""")]
+    [InlineData("""{"eventCount":null}""")]
+    public async Task Un_sceau_sans_nombre_entier_d_evenements_est_un_conflit(string payload)
+    {
+        var result = await Store.BeginUnitOfWork().CommitAsync(Seal("2026-03", 1, 0) with { Payload = Json(payload) });
+
+        AssertRejected(result, EventStoreErrors.ConcurrencyConflictCode);
+    }
+
+    [Fact]
+    public async Task Le_sceau_compte_les_evenements_qui_le_precedent_dans_le_lot()
+    {
+        await CommitOk(Event(Stream("a"), 1));
+
+        await CommitOk(Event(PeriodStream("2026-03"), 1, EventTypes.PeriodOpened), Seal("2026-03", 2, eventCount: 2));
+
+        Assert.Equal(3, (await Store.PeriodReader.ReadPeriodHashesAsync(_entity, "2026-03", Ct)).Count);
     }
 
     public static TheoryData<string, DateOnly?, decimal?> EvenementsInvalides => new()
@@ -351,6 +400,15 @@ public abstract class EventStoreContract
         new EventMetadata(Guid.CreateVersion7(), null, "tests"));
 
     protected string Stream(string name) => $"test-{_entity}-{name}";
+
+    /// <summary>Sceau de la période sans date d'affaires, dont la charge annonce <paramref name="eventCount"/> événements (ADR 0013).</summary>
+    private EventToAppend Seal(string period, long version, long eventCount) =>
+        Event(PeriodStream(period), version, EventTypes.PeriodSealed) with
+        {
+            BusinessDate = null,
+            Period = period,
+            Payload = Json($$"""{"entityId":"{{_entity}}","period":"{{period}}","eventCount":{{eventCount}},"merkleRoot":"{{new string('0', 64)}}"}"""),
+        };
 
     private string PeriodStream(string period) => $"period-{_entity}-{period}";
 

@@ -1,0 +1,18 @@
+# Contexte de build Docker : uniquement les sources nécessaires aux images.
+**/bin/
+**/obj/
+**/TestResults/
+.git/
+.github/
+.claude/
+.vs/
+.vscode/
+coverage/
+TestResults/
+docs/
+infra/
+tests/
+eng/
+**/*.md
+**/Dockerfile
+.env

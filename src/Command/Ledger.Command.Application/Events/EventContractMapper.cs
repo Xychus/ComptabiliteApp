@@ -1,4 +1,5 @@
 using System.Globalization;
+using Ledger.Command.Domain.Accounts;
 using Ledger.Command.Domain.ConstrainedAccounts;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Domain.Periods;
@@ -59,7 +60,24 @@ public static class EventContractMapper
     public static PeriodSealedV1 ToContract(PeriodSealed sealedPeriod)
     {
         ArgumentNullException.ThrowIfNull(sealedPeriod);
-        return new PeriodSealedV1(sealedPeriod.Entity.Value, sealedPeriod.Period.ToString());
+        return new PeriodSealedV1(sealedPeriod.Entity.Value, sealedPeriod.Period.ToString())
+        {
+            EventCount = sealedPeriod.Digest.EventCount,
+            MerkleRoot = sealedPeriod.Digest.MerkleRoot,
+        };
+    }
+
+    public static AccountDefinedV1 ToContract(AccountDefined defined)
+    {
+        ArgumentNullException.ThrowIfNull(defined);
+        return new AccountDefinedV1(
+            defined.Entity.Value,
+            defined.Account.Value,
+            defined.Name,
+            defined.Currency.Code,
+            defined.NormalSide.ToString(),
+            defined.IsActive,
+            defined.NoNegativeBalance);
     }
 
     public static JournalEntryPosted ToDomain(JournalEntryPostedV1 contract)
@@ -108,7 +126,21 @@ public static class EventContractMapper
     public static PeriodSealed ToDomain(PeriodSealedV1 contract)
     {
         ArgumentNullException.ThrowIfNull(contract);
-        return new PeriodSealed(new EntityId(contract.EntityId), Stored(PeriodId.Parse(contract.Period)));
+        var merkleRoot = contract.MerkleRoot ?? throw new InvalidOperationException("Événement stocké invalide : sceau sans racine de Merkle.");
+        return new PeriodSealed(new EntityId(contract.EntityId), Stored(PeriodId.Parse(contract.Period)), new PeriodDigest(contract.EventCount, merkleRoot));
+    }
+
+    public static AccountDefined ToDomain(AccountDefinedV1 contract)
+    {
+        ArgumentNullException.ThrowIfNull(contract);
+        return new AccountDefined(
+            new EntityId(contract.EntityId),
+            new AccountId(contract.AccountId),
+            contract.Name,
+            Stored(Currency.FromCode(contract.Currency)),
+            ToSide(contract.NormalSide),
+            contract.IsActive,
+            contract.NoNegativeBalance);
     }
 
     private static JournalLineV1 ToContract(JournalLine line) =>

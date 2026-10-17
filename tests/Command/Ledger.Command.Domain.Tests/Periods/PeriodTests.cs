@@ -41,6 +41,8 @@ public sealed class PeriodIdTests
 
 public sealed class PeriodDeciderTests
 {
+    private static readonly PeriodDigest Digest = new(3, new string('a', 64));
+
     private static Scenario<PeriodState> MarchPeriod() =>
         new(PeriodState.Initial(Acme, March), (state, e) => state.Evolve(e));
 
@@ -60,7 +62,7 @@ public sealed class PeriodDeciderTests
     [Fact]
     public void Rouvrir_une_periode_scellee_est_rejete() =>
         MarchPeriod()
-            .Given(new PeriodOpened(Acme, March), new PeriodSealed(Acme, March))
+            .Given(new PeriodOpened(Acme, March), new PeriodSealed(Acme, March, Digest))
             .When(s => PeriodDecider.Decide(s, new OpenPeriod(Acme, March)))
             .ThenRejected(PeriodErrors.SealedCode);
 
@@ -68,20 +70,20 @@ public sealed class PeriodDeciderTests
     public void Sceller_une_periode_ouverte() =>
         MarchPeriod()
             .Given(new PeriodOpened(Acme, March))
-            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March)))
-            .Then(new PeriodSealed(Acme, March));
+            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March, Digest)))
+            .Then(new PeriodSealed(Acme, March, Digest));
 
     [Fact]
     public void Sceller_une_periode_jamais_ouverte_est_rejete() =>
         MarchPeriod()
-            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March)))
+            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March, Digest)))
             .ThenRejected(PeriodErrors.NotOpenCode);
 
     [Fact]
     public void Sceller_deux_fois_est_rejete() =>
         MarchPeriod()
-            .Given(new PeriodOpened(Acme, March), new PeriodSealed(Acme, March))
-            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March)))
+            .Given(new PeriodOpened(Acme, March), new PeriodSealed(Acme, March, Digest))
+            .When(s => PeriodDecider.Decide(s, new SealPeriod(Acme, March, Digest)))
             .ThenRejected(PeriodErrors.AlreadySealedCode);
 
     [Fact]

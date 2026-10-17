@@ -1,0 +1,960 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Grand livre — API de commandes",
+    "description": "Écritures en partie double, contre-passations, périodes et plan comptable. Les erreurs sont des Problem Details (RFC 9457) avec les membres code et details. Les champs sequenceNumber, recordedAt, period et hash sont attribués par le serveur.",
+    "version": "v1"
+  },
+  "paths": {
+    "/v1/journal-entries/{entryId}": {
+      "put": {
+        "tags": [
+          "Écritures"
+        ],
+        "summary": "Passe une écriture (idempotent)",
+        "description": "Crée l'écriture identifiée par entryId (UUIDv7 choisi par le client). Rejouer la même requête renvoie l'écriture existante (200) ; réutiliser l'identifiant pour un autre contenu est un conflit (409).",
+        "operationId": "PostJournalEntry",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostJournalEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/journal-entries/{entryId}/reversals": {
+      "post": {
+        "tags": [
+          "Écritures"
+        ],
+        "summary": "Contre-passe une écriture (idempotent)",
+        "description": "Passe l'écriture inverse de entryId, identifiée par reversalEntryId. Rejouer la même contre-passation renvoie l'existante (200) ; une écriture ne se contre-passe qu'une fois (409).",
+        "operationId": "ReverseJournalEntry",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReverseJournalEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/periods/{period}/open": {
+      "post": {
+        "tags": [
+          "Périodes"
+        ],
+        "summary": "Ouvre une période (AAAA-MM)",
+        "description": "Une écriture n'est acceptée que dans une période ouverte. expectedVersion vaut 0 pour une période jamais ouverte.",
+        "operationId": "OpenPeriod",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/periods/{period}/seal": {
+      "post": {
+        "tags": [
+          "Périodes"
+        ],
+        "summary": "Scelle une période (AAAA-MM)",
+        "description": "Fige la période : plus aucune écriture n'y est acceptée. Le sceau publie le nombre d'événements de la période et la racine de Merkle de leurs hash. expectedVersion vaut 1 pour une période ouverte.",
+        "operationId": "SealPeriod",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeriodCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/accounts/{accountId}": {
+      "put": {
+        "tags": [
+          "Plan comptable"
+        ],
+        "summary": "Définit ou modifie un compte (idempotent)",
+        "description": "Crée le compte (201) ou change son nom et son état actif (200). La devise, le sens normal et noNegativeBalance sont immuables une fois le compte défini (422).",
+        "operationId": "DefineAccount",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:write"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountResponse": {
+        "required": [
+          "entityId",
+          "accountId",
+          "chartVersion",
+          "sequenceNumber",
+          "recordedAt",
+          "hash"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Code du compte."
+          },
+          "chartVersion": {
+            "type": "integer",
+            "description": "Version du flux du plan comptable de l'entité.",
+            "format": "int64"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Position dans le journal de l'événement qui définit l'état courant.",
+            "format": "int64"
+          },
+          "recordedAt": {
+            "type": "string",
+            "description": "Horodatage serveur de cet événement.",
+            "format": "date-time"
+          },
+          "hash": {
+            "type": "string",
+            "description": "Hash de cet événement."
+          }
+        },
+        "description": "Accusé de définition d'un compte : l'événement qui porte son état courant."
+      },
+      "DefineAccountRequest": {
+        "required": [
+          "entityId",
+          "name",
+          "currency",
+          "normalSide",
+          "isActive",
+          "noNegativeBalance"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "name": {
+            "type": "string",
+            "description": "Libellé (1 à 200 caractères)."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Devise du compte (immuable)."
+          },
+          "normalSide": {
+            "type": "string",
+            "description": "Sens du solde positif, `Debit` ou `Credit` (immuable)."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Un compte inactif refuse les nouvelles lignes."
+          },
+          "noNegativeBalance": {
+            "type": "boolean",
+            "description": "Le solde ne peut devenir négatif dans son sens normal (immuable)."
+          }
+        },
+        "description": "Définition d'un compte du plan comptable ; son code est dans le chemin."
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "code": {
+            "type": "string",
+            "description": "Code de l'erreur de domaine (ex. EntryNotBalanced) ; type = urn:ledger:problem:{code}."
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Cause précise du rejet (ex. lineIndex, account, expectedVersion)."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identifiant de trace W3C de la requête."
+          }
+        }
+      },
+      "JournalEntryResponse": {
+        "required": [
+          "entryId",
+          "sequenceNumber",
+          "recordedAt",
+          "period",
+          "hash"
+        ],
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "description": "Identifiant de l'écriture créée (l'écriture inverse pour une contre-passation).",
+            "format": "uuid"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Position dans le journal (autorité serveur).",
+            "format": "int64"
+          },
+          "recordedAt": {
+            "type": "string",
+            "description": "Horodatage serveur (UTC, précision microseconde).",
+            "format": "date-time"
+          },
+          "period": {
+            "type": "string",
+            "description": "Période comptable (AAAA-MM)."
+          },
+          "hash": {
+            "type": "string",
+            "description": "Hash SHA-256 de l'événement (hexadécimal)."
+          }
+        },
+        "description": "Accusé de passation ou de contre-passation."
+      },
+      "JournalLineDto": {
+        "required": [
+          "accountId",
+          "side",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "Code du compte dans le plan comptable de l'entité."
+          },
+          "side": {
+            "type": "string",
+            "description": "`Debit` ou `Credit`."
+          },
+          "amount": {
+            "description": "Montant strictement positif.",
+            "$ref": "#/components/schemas/MoneyDto"
+          }
+        },
+        "description": "Ligne d'écriture."
+      },
+      "MoneyDto": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Montant en chaîne décimale, jamais un nombre JSON."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Code ISO 4217 (ex. `CAD`)."
+          }
+        },
+        "description": "Montant : chaîne décimale invariante (ex. `\"114.98\"`) et code de devise ISO 4217."
+      },
+      "PeriodCommandRequest": {
+        "required": [
+          "entityId",
+          "expectedVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "description": "Version attendue du flux de la période (0 avant l'ouverture, 1 une fois ouverte).",
+            "format": "int64"
+          }
+        },
+        "description": "Ouverture ou scellement d'une période ; la période (AAAA-MM) est dans le chemin."
+      },
+      "PeriodResponse": {
+        "required": [
+          "entityId",
+          "period",
+          "status",
+          "version",
+          "sequenceNumber",
+          "recordedAt",
+          "hash",
+          "eventCount",
+          "merkleRoot"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "period": {
+            "type": "string",
+            "description": "Période (AAAA-MM)."
+          },
+          "status": {
+            "type": "string",
+            "description": "`Open` ou `Sealed`."
+          },
+          "version": {
+            "type": "integer",
+            "description": "Nouvelle version du flux de la période.",
+            "format": "int64"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Position dans le journal.",
+            "format": "int64"
+          },
+          "recordedAt": {
+            "type": "string",
+            "description": "Horodatage serveur.",
+            "format": "date-time"
+          },
+          "hash": {
+            "type": "string",
+            "description": "Hash de l'événement."
+          },
+          "eventCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "Scellement : nombre d'événements scellés.",
+            "format": "int64"
+          },
+          "merkleRoot": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Scellement : racine de Merkle des hash scellés."
+          }
+        },
+        "description": "Accusé d'ouverture ou de scellement d'une période."
+      },
+      "PostJournalEntryRequest": {
+        "required": [
+          "entityId",
+          "businessDate",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable qui tient le grand livre."
+          },
+          "businessDate": {
+            "type": "string",
+            "description": "Date d'affaires (AAAA-MM-JJ) ; elle détermine la période.",
+            "format": "date"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalLineDto"
+            },
+            "description": "Au moins deux lignes ; débits = crédits, par devise."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Libellé facultatif (500 caractères au plus)."
+          }
+        },
+        "description": "Écriture à passer ; son identifiant (UUIDv7) est dans le chemin."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Code de l'erreur de domaine (ex. EntryNotBalanced) ; type = urn:ledger:problem:{code}."
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Cause précise du rejet (ex. lineIndex, account, expectedVersion)."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identifiant de trace W3C de la requête."
+          }
+        }
+      },
+      "ReverseJournalEntryRequest": {
+        "required": [
+          "reversalEntryId",
+          "businessDate"
+        ],
+        "type": "object",
+        "properties": {
+          "reversalEntryId": {
+            "type": "string",
+            "description": "Identifiant (UUIDv7) de l'écriture inverse, choisi par le client ; clé d'idempotence.",
+            "format": "uuid"
+          },
+          "businessDate": {
+            "type": "string",
+            "description": "Date d'affaires de la contre-passation.",
+            "format": "date"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Libellé facultatif (500 caractères au plus)."
+          }
+        },
+        "description": "Contre-passation de l'écriture désignée par le chemin."
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Jeton Keycloak, audience ledger-api, scope ledger:write.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Écritures"
+    },
+    {
+      "name": "Périodes"
+    },
+    {
+      "name": "Plan comptable"
+    }
+  ]
+}

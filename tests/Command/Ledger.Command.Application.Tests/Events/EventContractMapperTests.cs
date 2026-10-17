@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ledger.Command.Application.Events;
+using Ledger.Command.Domain.Accounts;
 using Ledger.Command.Domain.ConstrainedAccounts;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Domain.Periods;
@@ -58,8 +59,16 @@ public sealed class EventContractMapperTests
     public void Evenements_de_periode_vers_V1()
     {
         Assert.Equal(new PeriodOpenedV1("ACME", "2026-03"), EventContractMapper.ToContract(new PeriodOpened(_acme, _march)));
-        Assert.Equal(new PeriodSealedV1("ACME", "2026-03"), EventContractMapper.ToContract(new PeriodSealed(_acme, _march)));
+        Assert.Equal(
+            new PeriodSealedV1("ACME", "2026-03") { EventCount = 7, MerkleRoot = new string('b', 64) },
+            EventContractMapper.ToContract(new PeriodSealed(_acme, _march, new PeriodDigest(7, new string('b', 64)))));
     }
+
+    [Fact]
+    public void Definition_de_compte_vers_V1() =>
+        Assert.Equal(
+            new AccountDefinedV1("ACME", "4100", "Ventes US", "USD", "Credit", IsActive: false, NoNegativeBalance: false),
+            EventContractMapper.ToContract(new AccountDefined(_acme, new AccountId("4100"), "Ventes US", Currency.Usd, Side.Credit, IsActive: false, NoNegativeBalance: false)));
 
     [Fact]
     public void Les_montants_sont_serialises_en_chaine_decimale_jamais_en_nombre()

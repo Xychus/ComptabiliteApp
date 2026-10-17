@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Ledger.Command.Application.Events;
 using Ledger.Command.Domain;
+using Ledger.Command.Domain.Accounts;
 using Ledger.Command.Domain.ConstrainedAccounts;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Domain.Periods;
@@ -25,7 +26,8 @@ public sealed class EventCatalogTests
         { new JournalEntryReversed(EntryId.New(), EntryId.New(), _acme, new DateOnly(2026, 3, 20), _march, null, _lines), EventTypes.JournalEntryReversed },
         { new AccountLinePosted(_acme, new AccountId("1000"), EntryId.New(), Side.Credit, new Money(60m, Currency.Cad), new Money(40m, Currency.Cad)), EventTypes.AccountLinePosted },
         { new PeriodOpened(_acme, _march), EventTypes.PeriodOpened },
-        { new PeriodSealed(_acme, _march), EventTypes.PeriodSealed },
+        { new PeriodSealed(_acme, _march, new PeriodDigest(42, new string('c', 64))), EventTypes.PeriodSealed },
+        { new AccountDefined(_acme, new AccountId("1000"), "Encaisse", Currency.Cad, Side.Debit, IsActive: true, NoNegativeBalance: true), EventTypes.AccountDefined },
     };
 
     [Theory]
@@ -49,6 +51,20 @@ public sealed class EventCatalogTests
         Assert.Equal("9.98", line.GetProperty("amount").GetProperty("amount").GetString());
         Assert.Equal("Credit", line.GetProperty("side").GetString());
     }
+
+    [Fact]
+    public void Le_sceau_publie_eventCount_en_nombre_lu_par_l_event_store()
+    {
+        var payload = EventCatalog.Default.Serialize(new PeriodSealed(_acme, _march, new PeriodDigest(42, new string('c', 64)))).Payload;
+
+        Assert.Equal(JsonValueKind.Number, payload.GetProperty("eventCount").ValueKind);
+        Assert.Equal(42, payload.GetProperty("eventCount").GetInt64());
+        Assert.Equal(new string('c', 64), payload.GetProperty("merkleRoot").GetString());
+    }
+
+    [Fact]
+    public void Un_sceau_stocke_sans_racine_est_une_corruption() =>
+        Assert.Throws<InvalidOperationException>(() => EventCatalog.Default.Deserialize(EventTypes.PeriodSealed, 1, Json("""{"entityId":"ACME","period":"2026-03"}""")));
 
     [Fact]
     public void Un_evenement_sans_contrat_est_un_bogue() =>

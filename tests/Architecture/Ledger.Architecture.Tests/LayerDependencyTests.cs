@@ -43,6 +43,12 @@ public sealed class LayerDependencyTests
             .Check(Model);
 
     [Fact]
+    public void La_composition_ne_touche_pas_directement_la_base_ni_Kafka_ni_AWS() =>
+        Types().That().ResideInAssembly(CommandApi, ProjectionsWorker, QueryApi)
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(DataAccessNamespaces)
+            .Check(Model);
+
+    [Fact]
     public void Contracts_ne_depend_d_aucune_couche_de_service() =>
         Types().That().ResideInAssembly(ContractsAssembly)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(DomainLayerNamespaces)

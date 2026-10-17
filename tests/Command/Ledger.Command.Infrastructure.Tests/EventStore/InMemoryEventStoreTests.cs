@@ -17,6 +17,8 @@ public sealed class InMemoryEventStoreTests : EventStoreContract
 
         public IEventReader Reader => _store;
 
+        public IPeriodEventReader PeriodReader => _store;
+
         public TestClock Clock { get; } = new();
 
         public UnitOfWorkUnderTest BeginUnitOfWork()

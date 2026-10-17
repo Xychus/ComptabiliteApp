@@ -17,6 +17,7 @@ public static class EventTypes
     public const string AccountLinePosted = "AccountLinePosted";
     public const string PeriodOpened = "PeriodOpened";
     public const string PeriodSealed = "PeriodSealed";
+    public const string AccountDefined = "AccountDefined";
 }
 
 /// <summary>Montant en chaîne décimale invariante (ex. <c>"114.98"</c>) et code de devise ISO 4217.</summary>
@@ -64,7 +65,29 @@ public sealed record PeriodOpenedV1(string EntityId, string Period)
     public int SchemaVersion { get; init; } = EventSchema.Version;
 }
 
+/// <summary>
+/// Sceau de période (ADR 0005 et 0013). <see cref="EventCount"/> et <see cref="MerkleRoot"/> décrivent
+/// les événements de l'entité dans la période, hors le sceau ; le nom <c>eventCount</c> est lu par
+/// l'event store.
+/// </summary>
 public sealed record PeriodSealedV1(string EntityId, string Period)
+{
+    public int SchemaVersion { get; init; } = EventSchema.Version;
+
+    public long EventCount { get; init; }
+
+    public string? MerkleRoot { get; init; }
+}
+
+/// <summary>État complet d'un compte du plan comptable (ADR 0012) ; <see cref="NormalSide"/> vaut <c>"Debit"</c> ou <c>"Credit"</c>.</summary>
+public sealed record AccountDefinedV1(
+    string EntityId,
+    string AccountId,
+    string Name,
+    string Currency,
+    string NormalSide,
+    bool IsActive,
+    bool NoNegativeBalance)
 {
     public int SchemaVersion { get; init; } = EventSchema.Version;
 }

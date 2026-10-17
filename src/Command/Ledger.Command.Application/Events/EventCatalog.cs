@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ledger.Command.Domain;
+using Ledger.Command.Domain.Accounts;
 using Ledger.Command.Domain.ConstrainedAccounts;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Domain.Periods;
@@ -64,6 +65,7 @@ public sealed class EventCatalog
         new EventMapping<AccountLinePosted, AccountLinePostedV1>(EventTypes.AccountLinePosted, EventContractMapper.ToContract, EventContractMapper.ToDomain),
         new EventMapping<PeriodOpened, PeriodOpenedV1>(EventTypes.PeriodOpened, EventContractMapper.ToContract, EventContractMapper.ToDomain),
         new EventMapping<PeriodSealed, PeriodSealedV1>(EventTypes.PeriodSealed, EventContractMapper.ToContract, EventContractMapper.ToDomain),
+        new EventMapping<AccountDefined, AccountDefinedV1>(EventTypes.AccountDefined, EventContractMapper.ToContract, EventContractMapper.ToDomain),
     ]);
 
     public SerializedEvent Serialize(IDomainEvent @event)

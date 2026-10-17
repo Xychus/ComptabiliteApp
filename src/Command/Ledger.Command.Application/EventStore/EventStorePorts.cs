@@ -9,6 +9,13 @@ public interface IEventReader
     Task<IReadOnlyList<StoredEvent>> ReadStreamAsync(string streamId, CancellationToken cancellationToken);
 }
 
+/// <summary>Lecture des événements d'une période, pour son sceau (ADR 0013).</summary>
+public interface IPeriodEventReader
+{
+    /// <summary>Hash des événements de l'entité dans la période, par <c>global_sequence</c> croissante.</summary>
+    Task<IReadOnlyList<string>> ReadPeriodHashesAsync(string entityId, string period, CancellationToken cancellationToken);
+}
+
 /// <summary>Prépare des événements dans l'unité de travail courante ; rien n'est écrit avant <see cref="IUnitOfWork.CommitAsync"/>.</summary>
 public interface IEventAppender
 {
