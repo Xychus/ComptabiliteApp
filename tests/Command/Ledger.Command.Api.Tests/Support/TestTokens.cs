@@ -13,6 +13,7 @@ public static class TestTokens
     public const string Client = "caisse-1";
 
     private static readonly RSA _rsa = RSA.Create(2048);
+    private static readonly RSA _foreignRsa = RSA.Create(2048);
 
     public static SecurityKey SigningKey { get; } = new RsaSecurityKey(_rsa) { KeyId = "test-key" };
 
@@ -53,5 +54,5 @@ public static class TestTokens
     }
 
     /// <summary>Clé que l'API ne connaît pas : un jeton signé par elle est refusé.</summary>
-    public static SecurityKey ForeignKey() => new RsaSecurityKey(RSA.Create(2048)) { KeyId = "inconnue" };
+    public static SecurityKey ForeignKey { get; } = new RsaSecurityKey(_foreignRsa) { KeyId = "inconnue" };
 }

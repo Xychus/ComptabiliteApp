@@ -136,7 +136,8 @@ public sealed class JournalEntryEndpointTests(InMemoryApi api)
             }
             """;
 
-        var response = await client.Http.PutAsync(new Uri($"/v1/journal-entries/{entryId}", UriKind.Relative), new StringContent(body, Encoding.UTF8, "application/json"), Ct);
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        var response = await client.Http.PutAsync(new Uri($"/v1/journal-entries/{entryId}", UriKind.Relative), content, Ct);
 
         var receipt = await (await Task.FromResult(response).ExpectAsync(HttpStatusCode.Created)).BodyAsync<JournalEntryResponse>();
         Assert.Equal(entryId, receipt.EntryId);

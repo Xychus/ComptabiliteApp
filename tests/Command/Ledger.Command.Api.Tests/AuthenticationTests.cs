@@ -12,7 +12,7 @@ public sealed class AuthenticationTests(InMemoryApi api)
 {
     public static TheoryData<string> JetonsInvalides => new()
     {
-        TestTokens.Create(key: TestTokens.ForeignKey()),
+        TestTokens.Create(key: TestTokens.ForeignKey),
         TestTokens.Create(expires: DateTime.UtcNow.AddMinutes(-5)),
         TestTokens.Create(audience: "autre-api"),
         TestTokens.Create(issuer: "https://pirate.test/realms/ledger"),

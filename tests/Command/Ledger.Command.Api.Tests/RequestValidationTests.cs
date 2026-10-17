@@ -53,7 +53,8 @@ public sealed class RequestValidationTests(InMemoryApi api)
     {
         var client = api.NewClient();
 
-        var response = await client.Http.PutAsync(new Uri($"/v1/journal-entries/{Guid.CreateVersion7()}", UriKind.Relative), new StringContent(body, Encoding.UTF8, "application/json"), Ct);
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        var response = await client.Http.PutAsync(new Uri($"/v1/journal-entries/{Guid.CreateVersion7()}", UriKind.Relative), content, Ct);
 
         var problem = await response.ProblemAsync(HttpStatusCode.BadRequest);
         Assert.Equal("Requête invalide", problem.GetProperty("title").GetString());
@@ -65,7 +66,8 @@ public sealed class RequestValidationTests(InMemoryApi api)
     {
         var client = api.NewClient();
 
-        var response = await client.Http.PutAsync(new Uri("/v1/journal-entries/pas-un-uuid", UriKind.Relative), new StringContent(JsonSerializer.Serialize(client.CashSale(1m), JsonSerializerOptions.Web), Encoding.UTF8, "application/json"), Ct);
+        using var content = new StringContent(JsonSerializer.Serialize(client.CashSale(1m), JsonSerializerOptions.Web), Encoding.UTF8, "application/json");
+        var response = await client.Http.PutAsync(new Uri("/v1/journal-entries/pas-un-uuid", UriKind.Relative), content, Ct);
 
         await response.ProblemAsync(HttpStatusCode.BadRequest);
     }
@@ -76,7 +78,8 @@ public sealed class RequestValidationTests(InMemoryApi api)
         var client = api.NewClient();
         var body = $$"""{"entityId":"{{client.Entity}}","expectedVersion":"0"}""";
 
-        var response = await client.Http.PostAsync(new Uri("/v1/periods/2026-03/open", UriKind.Relative), new StringContent(body, Encoding.UTF8, "application/json"), Ct);
+        using var content = new StringContent(body, Encoding.UTF8, "application/json");
+        var response = await client.Http.PostAsync(new Uri("/v1/periods/2026-03/open", UriKind.Relative), content, Ct);
 
         await response.ProblemAsync(HttpStatusCode.BadRequest);
     }

@@ -12,6 +12,10 @@ namespace Ledger.Command.Application.Entries;
 /// </summary>
 internal sealed class ConstrainedAccountLines(AggregateStreamReader streams)
 {
+    /// <summary>
+    /// Décide chaque ligne de compte contraint de <paramref name="lines"/> sur l'état relu du flux du
+    /// compte et ajoute les <c>AccountLinePosted</c> acceptés à <paramref name="batch"/>.
+    /// </summary>
     /// <returns>Le premier rejet (solde insuffisant), ou <c>null</c> si toutes les lignes sont acceptées.</returns>
     public async Task<DomainError?> AddAsync(
         EntityId entity,
