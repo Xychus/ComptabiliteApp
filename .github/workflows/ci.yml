@@ -31,6 +31,9 @@ jobs:
         run: dotnet restore Ledger.slnx
       - name: Build
         run: dotnet build Ledger.slnx --no-restore -c Release -warnaserror
+      # Le build régénère docs/api/openapi.json (ADR 0014) : un écart = contrat modifié sans être versionné.
+      - name: Contrat OpenAPI à jour
+        run: git diff --exit-code -- docs/api
       - name: Tests (hors intégration)
         run: >
           dotnet test --solution Ledger.slnx --no-build -c Release
@@ -71,6 +74,29 @@ jobs:
           name: coverage-integration
           path: TestResults/integration/**/*.cobertura.xml
           if-no-files-found: warn
+
+  docker-image:
+    name: Image de l'API de commandes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      # Construction seule (aucune publication) : la publication versionnée arrive en phase 10.
+      - name: Build de l'image
+        run: docker build -f src/Command/Ledger.Command.Api/Dockerfile -t ledger-command-api:ci-${{ github.sha }} .
+      - name: Démarrage non root, système de fichiers en lecture seule
+        run: |
+          docker run -d --name api --read-only --cap-drop ALL --security-opt no-new-privileges -p 8080:8080 \
+            -e Ledger__Authentication__Authority=https://keycloak.example/realms/ledger \
+            -e "ConnectionStrings__Ledger=Host=127.0.0.1;Port=1;Database=ledger;Username=ledger_app" \
+            ledger-command-api:ci-${{ github.sha }}
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/health/live && break; sleep 1; done
+          curl -fs http://localhost:8080/health/live
+          test "$(docker inspect api --format '{{.Config.User}}')" = "1654"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT http://localhost:8080/v1/journal-entries/0199f0a0-0000-7000-8000-000000000001)" = "401"
+      - name: Journaux du conteneur
+        if: always()
+        run: docker logs api || true
 
   coverage:
     name: Seuils de couverture
