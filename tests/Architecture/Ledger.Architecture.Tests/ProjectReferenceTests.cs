@@ -74,7 +74,7 @@ public sealed class ProjectReferenceTests
     private static XDocument Load(string project) => XDocument.Load(AllProjectFiles()[project]);
 
     private static Dictionary<string, string> AllProjectFiles() =>
-        Directory.EnumerateFiles(Path.Combine(RepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
+        Directory.EnumerateFiles(Path.Join(RepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
             .ToDictionary(path => Path.GetFileNameWithoutExtension(path), StringComparer.Ordinal);
 
     private static string RepositoryRoot()
