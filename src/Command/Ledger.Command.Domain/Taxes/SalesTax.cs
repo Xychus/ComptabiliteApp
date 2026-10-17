@@ -27,6 +27,7 @@ public sealed record TaxBreakdown(Money Subtotal, Money Gst, Money Qst)
 /// <summary>Calcul des taxes de vente d'une facture.</summary>
 public interface ITaxCalculator
 {
+    /// <summary>Calcule la ventilation (sous-total, TPS, TVQ) à partir des montants taxables.</summary>
     /// <param name="taxableAmounts">Montants hors taxes des lignes taxables, dans une même devise.</param>
     TaxBreakdown Calculate(IReadOnlyList<Money> taxableAmounts);
 }
