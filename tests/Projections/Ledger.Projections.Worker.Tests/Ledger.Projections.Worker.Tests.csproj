@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Worker\Ledger.Projections.Worker.csproj" />
+  </ItemGroup>
+
+</Project>

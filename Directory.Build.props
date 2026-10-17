@@ -1,0 +1,51 @@
+<Project>
+
+  <!-- Réglages communs à tous les projets du monorepo. Ne pas les surcharger dans un .csproj. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- CS1591 : la documentation XML n'est pas exigée sur chaque membre public. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Authors>Alexis Labranche</Authors>
+    <Product>Ledger</Product>
+  </PropertyGroup>
+
+  <!--
+    Version SemVer par composant (ADR 0001). Chaque composant release-please possède un version.txt
+    dans son dossier (src/Command, src/Projections, ...), mis à jour par release-please uniquement.
+    Les projets hors composant (SharedKernel, Tools, tests) prennent la version de repli.
+  -->
+  <PropertyGroup>
+    <ComponentVersionFile>$([MSBuild]::GetPathOfFileAbove('version.txt', '$(MSBuildProjectDirectory)'))</ComponentVersionFile>
+    <Version Condition="'$(ComponentVersionFile)' != ''">$([System.IO.File]::ReadAllText('$(ComponentVersionFile)').Trim())</Version>
+    <Version Condition="'$(ComponentVersionFile)' == ''">0.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <!--
+      Les tests s'exécutent avec Microsoft.Testing.Platform (voir global.json).
+      Code 8 = aucun test exécuté : normal pour un projet encore vide ou un filtre sans correspondance
+      (ex. Category=Integration avant la phase 2).
+    -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
