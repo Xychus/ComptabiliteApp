@@ -131,22 +131,22 @@ Termine en cochant les cases de la phase 0 et en ajoutant une entrée au Journal
 **Objectif** : toute la logique comptable, testée exhaustivement, sans base de données ni réseau.
 
 ### Tâches
-- [ ] `Ledger.SharedKernel` : `Money` (montant `decimal` + devise, opérations, arrondi explicite),
+- [x] `Ledger.SharedKernel` : `Money` (montant `decimal` + devise, opérations, arrondi explicite),
       `EntityId`, `AccountId`, `EntryId` (UUIDv7), `Result<T>` / erreurs de domaine, `IClock`
-- [ ] Modèle de période : dérivation `business_date → period` (ex. `2026-03`), statut `OPEN`/`SEALED`
-- [ ] Agrégat `JournalEntry` : commande `PostEntry` → `JournalEntryPosted` ou rejet ;
+- [x] Modèle de période : dérivation `business_date → period` (ex. `2026-03`), statut `OPEN`/`SEALED`
+- [x] Agrégat `JournalEntry` : commande `PostEntry` → `JournalEntryPosted` ou rejet ;
       commande `ReverseEntry` → `JournalEntryReversed` (écriture inverse, `reversalOf`)
-- [ ] Agrégat `ConstrainedAccount` (comptes `no_negative_balance`) : état = `balance_after` +
+- [x] Agrégat `ConstrainedAccount` (comptes `no_negative_balance`) : état = `balance_after` +
       version ; `ApplyLine` → `AccountLinePosted` ou rejet `InsufficientBalance`
-- [ ] Agrégat `Period` : `OpenPeriod`, `SealPeriod` → `PeriodSealed` ; refus des écritures en période scellée
-- [ ] Règles d'écriture extensibles (`IEntryRule`) : équilibre débit/crédit par devise, au moins
+- [x] Agrégat `Period` : `OpenPeriod`, `SealPeriod` → `PeriodSealed` ; refus des écritures en période scellée
+- [x] Règles d'écriture extensibles (`IEntryRule`) : équilibre débit/crédit par devise, au moins
       deux lignes, montants strictement positifs, compte actif, devise unique par écriture
-- [ ] Calcul TPS/TVQ derrière `ITaxCalculator` (implémentation selon ADR 0008)
-- [ ] Contrats d'événements dans `Ledger.Contracts` avec `schema_version = 1`
-- [ ] Tests Given / When / Then pour chaque commande et chaque rejet
-- [ ] Tests de propriétés FsCheck : (a) toute écriture acceptée est équilibrée ; (b) aucune suite
+- [x] Calcul TPS/TVQ derrière `ITaxCalculator` (implémentation selon ADR 0008)
+- [x] Contrats d'événements dans `Ledger.Contracts` avec `schema_version = 1`
+- [x] Tests Given / When / Then pour chaque commande et chaque rejet
+- [x] Tests de propriétés FsCheck : (a) toute écriture acceptée est équilibrée ; (b) aucune suite
       de commandes acceptées ne rend un compte contraint négatif ; (c) écriture + contre-passation = effet nul
-- [ ] ADR 0008 (rédigé avec les hypothèses, marqué « à valider »)
+- [x] ADR 0008 (rédigé avec les hypothèses, marqué « à valider »)
 
 ### Critères d'acceptation
 - `Ledger.Command.Domain` ne référence que `Ledger.SharedKernel` (test d'architecture vert).
@@ -535,3 +535,5 @@ Commence par Ledger.Integrity et son test d'altération, puis le scellement et l
 | Date | Phase | Résumé | Décisions / ADR | Points ouverts |
 |---|---|---|---|---|
 | 2026-10-16 | 0 | Monorepo .NET 10 (SDK 10.0.113) : `Ledger.slnx`, 13 projets `src/` vides avec `AssemblyMarker`, 14 projets de tests (dont `tests/Architecture`), props communs et paquets centralisés, CI (build `-warnaserror`, tests sans/avec Docker, couverture avec seuils par assembly via `eng/Check-Coverage.ps1`, CodeQL), contrôle du titre de PR, release-please (6 composants à `0.1.0`, `version.txt` par composant), Dependabot, gabarit de PR, README. `PLAN.md` déplacé dans `docs/plan/`. Critère vérifié : ajouter `Npgsql` à `Ledger.Command.Domain` fait échouer les tests d'architecture (référence seule → test `.csproj` ; usage d'un type → ArchUnitNET aussi). | [ADR 0001](../adr/0001-monorepo-semver-par-composant.md), [ADR 0002](../adr/0002-architecture-hexagonale-archunitnet.md). **Tests sous Microsoft.Testing.Platform** (`global.json`) : xUnit v3 4.x et le SDK .NET 10 refusent `dotnet test` en mode VSTest. Conséquences : `dotnet test --solution Ledger.slnx`, filtres `--filter-not-trait` / `--filter-trait "Category=Integration"`, couverture par `Microsoft.Testing.Extensions.CodeCoverage` (`coverage.config`) ; `CLAUDE.md` mis à jour. Code de sortie 8 (aucun test) ignoré tant que des projets sont vides. `Program.cs` exclus de la couverture (racines de composition). | (1) À faire par un humain : protection de `main` (PR + checks `ci` et `pr-title` obligatoires, historique linéaire, fusion squash uniquement). (2) Le blocage d'un titre de PR non conventionnel reste à constater sur GitHub. (3) Hors périmètre : `src/SharedKernel` et `src/Tools` n'appartiennent à aucun composant release-please — décider avant la phase 2 si `Ledger.Migrations` suit le composant `command` (ADR à écrire). (4) Dependabot `terraform`/`docker` sans fichiers avant les phases 3 et 6 (avertissement attendu). |
+| 2026-10-16 | 0 (clôture) | Points (1) et (2) ci-dessus résolus : ruleset de `main` = PR obligatoire, squash uniquement, historique linéaire, checks requis (`Titre de PR en Conventional Commits`, `Build et tests sans Docker`, `Tests d'intégration (Docker)`, `Seuils de couverture`, `CodeQL`). Règle « code coverage » native de GitHub retirée (seuils appliqués par `eng/Check-Coverage.ps1`). Test : une PR intitulée « Test titre » échoue au check de titre et reste `BLOCKED`. | — | Restent ouverts : (3) et (4) de l'entrée précédente. |
+| 2026-10-16 | 1 | Domaine pur : SharedKernel (`Money`, `Currency`, `EntityId`/`AccountId`/`EntryId` UUIDv7, `Result<T>`/`DomainError`, `IClock`, `EquatableList<T>`) ; deciders `Period`, `JournalEntry` (passation, contre-passation), `ConstrainedAccount` (`balance_after`, solde non négatif) ; 7 règles `IEntryRule` ; `QuebecSalesTaxCalculator` ; contrats d'événements V1 (`Ledger.Contracts`) et `EventContractMapper` (`Ledger.Command.Application`). 132 tests : Given/When/Then par commande et par rejet, 4 propriétés FsCheck sur 1 000 cas chacune (nombre vérifié par une sonde temporaire), exemple de référence 114,98 reproduit. Couverture : Domain 99,3 %, SharedKernel 99,2 %, Application et Contracts 100 %. | [ADR 0008](../adr/0008-regles-comptables-tps-tvq.md) (statut « à valider ») : H1 arrondi TPS/TVQ au niveau facture, H2 `AwayFromZero`, H3 TVQ sur le hors-taxes, H4 périodes mensuelles, H5 période explicitement ouverte, H6 une devise par compte et par écriture, H7 solde contraint dans le sens normal, H8 contre-passation unique, H9 montants au cent. Conception : un decider fonctionnel par agrégat (`Evolve` + `Decide` → `Result<événements>`), contexte (période, plan comptable via le port `IChartOfAccounts`) passé par l'appelant, jamais lu dans une projection. La contre-passation est stockée dans le flux de l'écriture d'origine (`entry-{id}` v2) : une seconde contre-passation entre en conflit. | (1) **Revue de l'ADR 0008 avec le comptable** (point d'arrêt), en priorité H1 et H4 (H4 conditionne le partitionnement de la phase 2). (2) Phase 2 : le `reversalEntryId` n'a pas de flux propre — réserver cet identifiant (ex. unicité de `entryId` sur tous les événements) pour qu'un `PUT` ultérieur ne puisse pas le réutiliser ; à trancher dans l'ADR 0003. (3) Phase 2 : idempotence d'un `PUT` identique (`EntryAlreadyPosted` renvoyé par le domaine ; comparaison de charge à faire dans l'Application). |

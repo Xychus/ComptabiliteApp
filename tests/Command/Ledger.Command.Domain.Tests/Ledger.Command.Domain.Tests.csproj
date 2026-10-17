@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="FsCheck.Xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Domain\Ledger.Command.Domain.csproj" />
   </ItemGroup>
 
