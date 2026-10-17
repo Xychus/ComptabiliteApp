@@ -60,6 +60,7 @@ public sealed class JournalEntryDecider(EntryRuleSet rules)
 {
     public static JournalEntryDecider Default { get; } = new(EntryRuleSet.Default);
 
+    /// <summary>Décide les événements à produire pour la passation d'une écriture, ou un rejet si la commande est invalide.</summary>
     /// <param name="state">État courant de l'écriture.</param>
     /// <param name="command">Commande de passation.</param>
     /// <param name="period">État de la période de <c>command.BusinessDate</c>, lu depuis le journal.</param>
