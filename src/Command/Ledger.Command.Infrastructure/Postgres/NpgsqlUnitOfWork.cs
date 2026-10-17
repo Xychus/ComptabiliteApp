@@ -91,8 +91,7 @@ public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) 
 
     private static async Task<Dictionary<string, StreamHead>> ReadHeadsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, EventToAppend[] batch, CancellationToken cancellationToken)
     {
-        var command = new NpgsqlCommand(ReadHeadsSql, connection, transaction);
-        await using var commandScope = command.ConfigureAwait(false);
+        using var command = new NpgsqlCommand(ReadHeadsSql, connection, transaction);
         command.Parameters.AddWithValue("stream_ids", batch.Select(e => e.StreamId).Distinct(StringComparer.Ordinal).ToArray());
         var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         await using var readerScope = reader.ConfigureAwait(false);
@@ -107,7 +106,7 @@ public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) 
 
     private static async Task<IReadOnlyList<StoredEvent>> InsertEventsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, IReadOnlyList<StoredEvent> prepared, CancellationToken cancellationToken)
     {
-        await using var batch = new NpgsqlBatch(connection, transaction);
+        using var batch = new NpgsqlBatch(connection, transaction);
         foreach (var e in prepared)
         {
             var command = new NpgsqlBatchCommand(InsertEventSql);
@@ -149,8 +148,7 @@ public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) 
     /// </summary>
     private static async Task InsertCompanionRowsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, EventToAppend[] batch, IReadOnlyList<StoredEvent> stored, CancellationToken cancellationToken)
     {
-        var npgsqlBatch = new NpgsqlBatch(connection, transaction);
-        await using var npgsqlBatchScope = npgsqlBatch.ConfigureAwait(false);
+        using var npgsqlBatch = new NpgsqlBatch(connection, transaction);
         foreach (var e in stored.OrderBy(e => e.StreamId, StringComparer.Ordinal).ThenBy(e => e.StreamVersion))
         {
             var command = new NpgsqlBatchCommand(InsertStreamVersionSql);

@@ -150,7 +150,8 @@ public static class JsonCanonicalizer
             throw new FormatException("NaN et l'infini ne sont pas des nombres JSON.");
         }
 
-        if (value == 0)
+        // +0 et -0 exactement (tous les bits nuls hors signe) : comparaison voulue, pas une tolérance.
+        if ((BitConverter.DoubleToInt64Bits(value) & long.MaxValue) == 0)
         {
             return "0";
         }

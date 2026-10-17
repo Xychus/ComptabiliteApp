@@ -21,6 +21,7 @@ public interface IEventAppender
 /// </summary>
 public interface IUnitOfWork
 {
+    /// <summary>Valide en une transaction les événements préparés depuis la dernière validation.</summary>
     /// <returns>
     /// Les événements stockés, dans l'ordre de préparation ; ou un rejet
     /// <see cref="EventStoreErrors.ConcurrencyConflictCode"/>, <see cref="EventStoreErrors.EntryIdAlreadyUsedCode"/>
