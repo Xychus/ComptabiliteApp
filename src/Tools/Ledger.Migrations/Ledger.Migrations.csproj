@@ -4,4 +4,13 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="dbup-postgresql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Scripts numérotés, exécutés une seule fois chacun, dans l'ordre de leur nom. -->
+    <EmbeddedResource Include="Scripts\*.sql" />
+  </ItemGroup>
+
 </Project>
