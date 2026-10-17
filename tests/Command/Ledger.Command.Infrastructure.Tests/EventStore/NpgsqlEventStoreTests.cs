@@ -15,7 +15,11 @@ public sealed class NpgsqlEventStoreTests(PostgresFixture database) : EventStore
 
     private sealed class NpgsqlUnderTest(PostgresFixture database) : IEventStoreUnderTest
     {
-        public IEventReader Reader { get; } = new NpgsqlEventStore(database.AppDataSource);
+        private readonly NpgsqlEventStore _store = new(database.AppDataSource);
+
+        public IEventReader Reader => _store;
+
+        public IPeriodEventReader PeriodReader => _store;
 
         public TestClock Clock { get; } = new();
 

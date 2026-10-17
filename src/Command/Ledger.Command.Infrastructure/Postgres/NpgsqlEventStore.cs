@@ -6,9 +6,10 @@ namespace Ledger.Command.Infrastructure.Postgres;
 
 /// <summary>
 /// Lecture du journal PostgreSQL : le flux est localisé par <c>stream_versions</c>, puis chaque
-/// événement est lu dans sa partition (ADR 0007).
+/// événement est lu dans sa partition (ADR 0007). Les hash d'une période sont lus dans la seule
+/// partition de son année.
 /// </summary>
-public sealed class NpgsqlEventStore(NpgsqlDataSource dataSource) : IEventReader
+public sealed class NpgsqlEventStore(NpgsqlDataSource dataSource) : IEventReader, IPeriodEventReader
 {
     internal const string EventColumns =
         """
@@ -25,6 +26,31 @@ public sealed class NpgsqlEventStore(NpgsqlDataSource dataSource) : IEventReader
         WHERE s.stream_id = @stream_id
         ORDER BY s.stream_version
         """;
+
+    private const string ReadPeriodHashesSql =
+        """
+        SELECT hash
+        FROM ledger.events
+        WHERE entity_id = @entity_id AND period = @period
+        ORDER BY global_sequence
+        """;
+
+    public async Task<IReadOnlyList<string>> ReadPeriodHashesAsync(string entityId, string period, CancellationToken cancellationToken)
+    {
+        var command = dataSource.CreateCommand(ReadPeriodHashesSql);
+        await using var commandScope = command.ConfigureAwait(false);
+        command.Parameters.AddWithValue("entity_id", entityId);
+        command.Parameters.AddWithValue("period", period);
+        var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await using var readerScope = reader.ConfigureAwait(false);
+        var hashes = new List<string>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            hashes.Add(reader.GetString(0));
+        }
+
+        return hashes;
+    }
 
     public async Task<IReadOnlyList<StoredEvent>> ReadStreamAsync(string streamId, CancellationToken cancellationToken)
     {

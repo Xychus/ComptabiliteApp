@@ -17,6 +17,7 @@ namespace Ledger.Command.Infrastructure.Postgres;
 public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) : IEventAppender, IUnitOfWork
 {
     private const string PeriodSealedState = "LG002";
+    private const string SealCountMismatchState = "LG003";
     private const string EntryIdsPrimaryKey = "entry_ids_pkey";
 
     private const string ReadHeadsSql =
@@ -191,7 +192,7 @@ public sealed class NpgsqlUnitOfWork(NpgsqlDataSource dataSource, IClock clock) 
     {
         PostgresErrorCodes.UniqueViolation when exception.ConstraintName == EntryIdsPrimaryKey =>
             EventStoreErrors.EntryIdAlreadyUsed(batch.First(e => e.ClaimedEntryId is not null).ClaimedEntryId!.Value),
-        PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.DeadlockDetected or PostgresErrorCodes.SerializationFailure =>
+        PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.DeadlockDetected or PostgresErrorCodes.SerializationFailure or SealCountMismatchState =>
             EventStoreErrors.ConcurrencyConflict(),
         PeriodSealedState => EventStoreErrors.PeriodSealed(batch[0].EntityId, batch[0].Period),
         _ => null,

@@ -11,11 +11,17 @@ public enum PeriodStatus
 
 public sealed record OpenPeriod(EntityId Entity, PeriodId Period);
 
-public sealed record SealPeriod(EntityId Entity, PeriodId Period);
+/// <summary>
+/// Empreinte des événements de la période au moment du sceau (ADR 0013) : leur nombre et la racine
+/// de Merkle de leurs hash. Calculée par l'Application, vérifiée par l'event store.
+/// </summary>
+public sealed record PeriodDigest(long EventCount, string MerkleRoot);
+
+public sealed record SealPeriod(EntityId Entity, PeriodId Period, PeriodDigest Digest);
 
 public sealed record PeriodOpened(EntityId Entity, PeriodId Period) : IDomainEvent;
 
-public sealed record PeriodSealed(EntityId Entity, PeriodId Period) : IDomainEvent;
+public sealed record PeriodSealed(EntityId Entity, PeriodId Period, PeriodDigest Digest) : IDomainEvent;
 
 /// <summary>État d'une période d'une entité, reconstruit depuis son flux d'événements.</summary>
 public sealed record PeriodState(EntityId Entity, PeriodId Period, PeriodStatus Status)
@@ -74,7 +80,7 @@ public static class PeriodDecider
 
         return state.Status switch
         {
-            PeriodStatus.Open => Events.Of(new PeriodSealed(command.Entity, command.Period)),
+            PeriodStatus.Open => Events.Of(new PeriodSealed(command.Entity, command.Period, command.Digest)),
             PeriodStatus.Sealed => Result.Failure<IReadOnlyList<IDomainEvent>>(PeriodErrors.AlreadySealed(command.Entity, command.Period)),
             _ => Result.Failure<IReadOnlyList<IDomainEvent>>(PeriodErrors.NotOpen(command.Entity, command.Period)),
         };

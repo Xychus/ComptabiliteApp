@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Ledger.Command.Application.EventStore;
 using Ledger.Command.Infrastructure.EventStore;
 using Ledger.Command.Infrastructure.Outbox;
@@ -9,9 +10,10 @@ namespace Ledger.Command.Infrastructure.InMemory;
 /// <summary>
 /// Event store en mémoire, pour les tests et le développement. Il passe la même suite de contrat
 /// que l'implémentation PostgreSQL (append-only, versions, réservation d'identifiants,
-/// chaînage, période scellée, outbox atomique). Un verrou global sérialise les validations.
+/// chaînage, période scellée et son nombre d'événements, outbox atomique). Un verrou global
+/// sérialise les validations.
 /// </summary>
-public sealed class InMemoryEventStore(IClock clock) : IEventReader
+public sealed class InMemoryEventStore(IClock clock) : IEventReader, IPeriodEventReader
 {
     private readonly Lock _gate = new();
     private readonly List<StoredEvent> _events = [];
@@ -40,6 +42,15 @@ public sealed class InMemoryEventStore(IClock clock) : IEventReader
         {
             IReadOnlyList<StoredEvent> events = _streams.TryGetValue(streamId, out var stream) ? [.. stream] : [];
             return Task.FromResult(events);
+        }
+    }
+
+    public Task<IReadOnlyList<string>> ReadPeriodHashesAsync(string entityId, string period, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            IReadOnlyList<string> hashes = [.. _events.Where(e => e.EntityId == entityId && e.Period == period).Select(e => e.Hash)];
+            return Task.FromResult(hashes);
         }
     }
 
@@ -72,14 +83,16 @@ public sealed class InMemoryEventStore(IClock clock) : IEventReader
     }
 
     /// <summary>
-    /// Contrôles que PostgreSQL fait, dans le même ordre : le trigger de période scellée à
-    /// l'insertion des événements, puis les contraintes d'unicité des tables compagnes.
+    /// Contrôles que PostgreSQL fait, dans le même ordre : le trigger de période scellée et du
+    /// nombre d'événements scellés à l'insertion des événements (ADR 0005 et 0013), puis les
+    /// contraintes d'unicité des tables compagnes.
     /// </summary>
     private DomainError? Rejection(IReadOnlyList<EventToAppend> events)
     {
         var sealedPeriods = new HashSet<(string, string)>(_sealedPeriods);
-        foreach (var candidate in events)
+        for (var index = 0; index < events.Count; index++)
         {
+            var candidate = events[index];
             if (sealedPeriods.Contains((candidate.EntityId, candidate.Period)))
             {
                 return EventStoreErrors.PeriodSealed(candidate.EntityId, candidate.Period);
@@ -87,6 +100,11 @@ public sealed class InMemoryEventStore(IClock clock) : IEventReader
 
             if (candidate.EventType == EventTypes.PeriodSealed)
             {
+                if (SealedEventCount(candidate) != CountInPeriod(candidate, events.Take(index)))
+                {
+                    return EventStoreErrors.ConcurrencyConflict(candidate.StreamId, candidate.StreamVersion);
+                }
+
                 sealedPeriods.Add((candidate.EntityId, candidate.Period));
             }
         }
@@ -106,6 +124,20 @@ public sealed class InMemoryEventStore(IClock clock) : IEventReader
 
         return null;
     }
+
+    /// <summary>Champ <c>eventCount</c> de la charge d'un sceau, ou <c>null</c> s'il est absent ou n'est pas un entier.</summary>
+    private static long? SealedEventCount(EventToAppend seal) =>
+        seal.Payload.ValueKind == JsonValueKind.Object
+            && seal.Payload.TryGetProperty("eventCount", out var count)
+            && count.ValueKind == JsonValueKind.Number
+            && count.TryGetInt64(out var value)
+                ? value
+                : null;
+
+    /// <summary>Événements de (entité, période) du sceau : déjà validés, plus ceux qui le précèdent dans le lot.</summary>
+    private long CountInPeriod(EventToAppend seal, IEnumerable<EventToAppend> earlierInBatch) =>
+        _events.Count(e => e.EntityId == seal.EntityId && e.Period == seal.Period)
+            + earlierInBatch.Count(e => e.EntityId == seal.EntityId && e.Period == seal.Period);
 
     private void Apply(StoredEvent stored, Guid? claimedEntryId)
     {

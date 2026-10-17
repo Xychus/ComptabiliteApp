@@ -9,6 +9,8 @@ public interface IEventStoreUnderTest
 {
     IEventReader Reader { get; }
 
+    IPeriodEventReader PeriodReader { get; }
+
     TestClock Clock { get; }
 
     UnitOfWorkUnderTest BeginUnitOfWork();

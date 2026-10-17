@@ -4,9 +4,9 @@ using Ledger.Command.Application.EventStore;
 using Ledger.Command.Domain.ConstrainedAccounts;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Domain.Periods;
-using Ledger.Command.Infrastructure.InMemory;
 using Ledger.Contracts.Events.V1;
 using Ledger.SharedKernel;
+using Ledger.Command.Application.Tests.Support;
 using static Ledger.Command.Application.Tests.Support.InMemoryLedger;
 using InMemoryLedger = Ledger.Command.Application.Tests.Support.InMemoryLedger;
 
@@ -160,7 +160,7 @@ public sealed class PostJournalEntryHandlerTests
         await _ledger.OpenMarchAsync();
         await _ledger.PostAsync(Entry(Debit(Cash, 100m), Credit(Sales, 100m)));
         var competitor = Entry(Debit(Receivables, 30m), Credit(Cash, 30m));
-        var racing = new RacingUnitOfWork(_ledger.Store.BeginUnitOfWork(), () => _ledger.PostAsync(competitor));
+        var racing = new RacingUnitOfWork(_ledger.Store.BeginUnitOfWork(), async () => Assert.True((await _ledger.PostAsync(competitor)).IsSuccess));
 
         var result = await _ledger.Handler(racing).HandleAsync(Entry(Debit(Receivables, 60m), Credit(Cash, 60m)), Metadata, Ct);
 
@@ -174,7 +174,7 @@ public sealed class PostJournalEntryHandlerTests
     {
         await _ledger.OpenMarchAsync();
         await _ledger.PostAsync(Entry(Debit(Cash, 100m), Credit(Sales, 100m)));
-        var racing = new RacingUnitOfWork(_ledger.Store.BeginUnitOfWork(), () => _ledger.PostAsync(Entry(Debit(Receivables, 60m), Credit(Cash, 60m))));
+        var racing = new RacingUnitOfWork(_ledger.Store.BeginUnitOfWork(), async () => Assert.True((await _ledger.PostAsync(Entry(Debit(Receivables, 60m), Credit(Cash, 60m)))).IsSuccess));
 
         var result = await _ledger.Handler(racing).HandleAsync(Entry(Debit(Receivables, 60m), Credit(Cash, 60m)), Metadata, Ct);
 
@@ -192,52 +192,5 @@ public sealed class PostJournalEntryHandlerTests
 
         Assert.Equal(EventStoreErrors.ConcurrencyConflictCode, result.Error.Code);
         Assert.Equal(3, conflicting.Commits);
-    }
-
-    /// <summary>Compte les validations.</summary>
-    private sealed class CountingUnitOfWork(InMemoryUnitOfWork inner) : IEventAppender, IUnitOfWork
-    {
-        public int Commits { get; private set; }
-
-        public void Append(EventToAppend eventToAppend) => inner.Append(eventToAppend);
-
-        public Task<Result<IReadOnlyList<StoredEvent>>> CommitAsync(CancellationToken cancellationToken)
-        {
-            Commits++;
-            return inner.CommitAsync(cancellationToken);
-        }
-    }
-
-    /// <summary>Fait valider une écriture concurrente juste avant la première validation.</summary>
-    private sealed class RacingUnitOfWork(InMemoryUnitOfWork inner, Func<Task<Result<EntryReceipt>>> competitor) : IEventAppender, IUnitOfWork
-    {
-        public int Commits { get; private set; }
-
-        public void Append(EventToAppend eventToAppend) => inner.Append(eventToAppend);
-
-        public async Task<Result<IReadOnlyList<StoredEvent>>> CommitAsync(CancellationToken cancellationToken)
-        {
-            if (++Commits == 1)
-            {
-                Assert.True((await competitor()).IsSuccess);
-            }
-
-            return await inner.CommitAsync(cancellationToken);
-        }
-    }
-
-    private sealed class AlwaysConflictingUnitOfWork : IEventAppender, IUnitOfWork
-    {
-        public int Commits { get; private set; }
-
-        public void Append(EventToAppend eventToAppend)
-        {
-        }
-
-        public Task<Result<IReadOnlyList<StoredEvent>>> CommitAsync(CancellationToken cancellationToken)
-        {
-            Commits++;
-            return Task.FromResult(Result.Failure<IReadOnlyList<StoredEvent>>(EventStoreErrors.ConcurrencyConflict()));
-        }
     }
 }

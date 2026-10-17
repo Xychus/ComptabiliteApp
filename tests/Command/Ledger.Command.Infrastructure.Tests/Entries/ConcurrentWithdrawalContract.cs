@@ -30,11 +30,9 @@ public abstract class ConcurrentWithdrawalContract
 
     protected abstract IEventReader Reader { get; }
 
-    protected abstract IChartOfAccountsReader Chart { get; }
-
     protected abstract UnitOfWorkUnderTest BeginUnitOfWork();
 
-    protected abstract Task DefineAccountAsync(EntityId entity, AccountInfo account);
+    private AggregateStreamReader Streams => new(Reader, EventCatalog.Default);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -67,7 +65,10 @@ public abstract class ConcurrentWithdrawalContract
     {
         foreach (var account in new[] { _cash, _expenses, _capital })
         {
-            await DefineAccountAsync(entity, account);
+            var unitOfWork = BeginUnitOfWork();
+            var defined = await new DefineAccountHandler(Streams, unitOfWork.Appender, unitOfWork.UnitOfWork, EventCatalog.Default, new SystemClock(), ConcurrencyRetryPolicy.Default)
+                .HandleAsync(new DefineAccount(entity, account.Id, "Compte " + account.Id, account.Currency, account.NormalSide, account.IsActive, account.NoNegativeBalance), _metadata, Ct);
+            Assert.True(defined.IsSuccess);
         }
 
         var opened = EventCatalog.Default.Serialize(new PeriodOpened(entity, _march));
@@ -90,7 +91,7 @@ public abstract class ConcurrentWithdrawalContract
 
     private PostJournalEntryHandler Handler<TUnitOfWork>(TUnitOfWork unitOfWork)
         where TUnitOfWork : IEventAppender, IUnitOfWork =>
-        new(new AggregateStreamReader(Reader, EventCatalog.Default), unitOfWork, unitOfWork, Chart, JournalEntryDecider.Default, EventCatalog.Default, ConcurrencyRetryPolicy.Default);
+        new(Streams, unitOfWork, unitOfWork, new JournalChartOfAccountsReader(Streams), JournalEntryDecider.Default, EventCatalog.Default, ConcurrencyRetryPolicy.Default);
 
     private PostJournalEntryHandler Handler(UnitOfWorkUnderTest unitOfWork) => Handler(new CountingUnitOfWork(unitOfWork));
 
@@ -115,22 +116,13 @@ public abstract class ConcurrentWithdrawalContract
 public sealed class InMemoryConcurrentWithdrawalTests : ConcurrentWithdrawalContract
 {
     private readonly InMemoryEventStore _store = new(new SystemClock());
-    private readonly InMemoryChartOfAccounts _chart = new();
 
     protected override IEventReader Reader => _store;
-
-    protected override IChartOfAccountsReader Chart => _chart;
 
     protected override UnitOfWorkUnderTest BeginUnitOfWork()
     {
         var unitOfWork = _store.BeginUnitOfWork();
         return new UnitOfWorkUnderTest(unitOfWork, unitOfWork);
-    }
-
-    protected override Task DefineAccountAsync(EntityId entity, AccountInfo account)
-    {
-        _chart.Define(entity, account);
-        return Task.CompletedTask;
     }
 }
 
@@ -140,13 +132,9 @@ public sealed class NpgsqlConcurrentWithdrawalTests(PostgresFixture database) : 
 {
     protected override IEventReader Reader { get; } = new NpgsqlEventStore(database.AppDataSource);
 
-    protected override IChartOfAccountsReader Chart { get; } = new NpgsqlChartOfAccountsReader(database.AppDataSource);
-
     protected override UnitOfWorkUnderTest BeginUnitOfWork()
     {
         var unitOfWork = new NpgsqlUnitOfWork(database.AppDataSource, new SystemClock());
         return new UnitOfWorkUnderTest(unitOfWork, unitOfWork);
     }
-
-    protected override Task DefineAccountAsync(EntityId entity, AccountInfo account) => database.DefineAccountAsync(entity, account);
 }
