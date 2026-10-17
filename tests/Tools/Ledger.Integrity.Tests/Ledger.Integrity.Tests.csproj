@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Integrity\Ledger.Integrity.csproj" />
+  </ItemGroup>
+
+</Project>

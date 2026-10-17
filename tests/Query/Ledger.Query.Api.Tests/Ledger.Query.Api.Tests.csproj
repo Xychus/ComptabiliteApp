@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Api\Ledger.Query.Api.csproj" />
+  </ItemGroup>
+
+</Project>

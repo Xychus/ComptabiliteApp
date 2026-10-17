@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Api\Ledger.Command.Api.csproj" />
+  </ItemGroup>
+
+</Project>

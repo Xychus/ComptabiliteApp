@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ledger.Command.Application\Ledger.Command.Application.csproj" />
+  </ItemGroup>
+
+</Project>
