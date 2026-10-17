@@ -1,0 +1,8 @@
+{
+  "src/Command": "0.1.0",
+  "src/Projections": "0.1.0",
+  "src/Query": "0.1.0",
+  "src/Authorizer": "0.1.0",
+  "src/Contracts": "0.1.0",
+  "infra": "0.1.0"
+}
