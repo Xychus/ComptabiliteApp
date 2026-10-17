@@ -9,6 +9,7 @@ public sealed class SchemaTests(PostgresFixture database)
 {
     private const string AppendOnlyViolation = "LG001";
     private const string PeriodSealedViolation = "LG002";
+    private const string SealCountMismatch = "LG003";
     private const string InsufficientPrivilege = "42501";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -18,7 +19,7 @@ public sealed class SchemaTests(PostgresFixture database)
     {
         Assert.True(database.FirstRun.Successful, database.FirstRun.Error?.ToString());
         Assert.Equal(
-            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication"],
+            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements"],
             database.FirstRun.ExecutedScripts.Select(name => name.Split('.')[^2]));
     }
 
@@ -113,12 +114,41 @@ public sealed class SchemaTests(PostgresFixture database)
     public async Task Aucune_insertion_dans_une_periode_scellee()
     {
         var entity = "SCEAU-" + Guid.NewGuid().ToString("N");
-        await InsertEventAsync(database.AppConnectionString, entity: entity, eventType: "PeriodSealed");
+        await InsertEventAsync(database.AppConnectionString, entity: entity, eventType: "PeriodSealed", payload: """{"eventCount":0}""");
 
         var error = await Assert.ThrowsAsync<PostgresException>(() => InsertEventAsync(database.AppConnectionString, entity: entity));
 
         Assert.Equal(PeriodSealedViolation, error.SqlState);
         await InsertEventAsync(database.AppConnectionString, entity: entity, period: "2026-04");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"eventCount":"2"}""")]
+    [InlineData("""{"eventCount":1}""")]
+    [InlineData("""{"eventCount":3}""")]
+    [InlineData("""{"eventCount":2.5}""")]
+    public async Task Un_sceau_qui_ne_compte_pas_les_evenements_de_la_periode_est_refuse(string payload)
+    {
+        var entity = "COMPTE-" + Guid.NewGuid().ToString("N");
+        await InsertEventAsync(database.AppConnectionString, entity: entity);
+        await InsertEventAsync(database.AppConnectionString, entity: entity);
+        await InsertEventAsync(database.AppConnectionString, entity: entity, period: "2026-04");
+
+        var error = await Assert.ThrowsAsync<PostgresException>(() => InsertEventAsync(database.AppConnectionString, entity: entity, eventType: "PeriodSealed", payload: payload));
+
+        Assert.Equal(SealCountMismatch, error.SqlState);
+    }
+
+    [Fact]
+    public async Task Un_sceau_qui_compte_exactement_les_evenements_de_la_periode_est_accepte()
+    {
+        var entity = "COMPTE-" + Guid.NewGuid().ToString("N");
+        await InsertEventAsync(database.AppConnectionString, entity: entity);
+        await InsertEventAsync(database.AppConnectionString, entity: entity);
+        await InsertEventAsync(database.AppConnectionString, entity: entity + "-B");
+
+        await InsertEventAsync(database.AppConnectionString, entity: entity, eventType: "PeriodSealed", payload: """{"eventCount":2}""");
     }
 
     [Theory]
@@ -168,7 +198,8 @@ public sealed class SchemaTests(PostgresFixture database)
         string? previousHash = null,
         long? globalSequence = null,
         Guid? claimedEntryId = null,
-        DateOnly? businessDate = null)
+        DateOnly? businessDate = null,
+        string payload = "{}")
     {
         var eventId = Guid.CreateVersion7();
         var streamId = "test-" + eventId.ToString("N");
@@ -180,7 +211,7 @@ public sealed class SchemaTests(PostgresFixture database)
             INSERT INTO ledger.events ({(globalSequence is null ? string.Empty : "global_sequence, ")}event_id, stream_id, stream_version, event_type, schema_version, entity_id,
                 business_date, recorded_at, period, payload, correlation_id, actor, hash, previous_hash)
             VALUES ({(globalSequence is null ? string.Empty : "@sequence, ")}@event_id, @stream_id, @version, @event_type, 1, @entity,
-                @business_date, now(), @period, jsonb_build_object(), gen_random_uuid(), 'tests', repeat('a', 64), @previous_hash)
+                @business_date, now(), @period, @payload::jsonb, gen_random_uuid(), 'tests', repeat('a', 64), @previous_hash)
             RETURNING global_sequence
             """,
             connection,
@@ -193,6 +224,7 @@ public sealed class SchemaTests(PostgresFixture database)
         insert.Parameters.AddWithValue("entity", entity ?? "SCHEMA-TESTS");
         insert.Parameters.AddWithValue("business_date", businessDate ?? DateOnly.ParseExact(period + "-15", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         insert.Parameters.AddWithValue("period", period);
+        insert.Parameters.AddWithValue("payload", payload);
         insert.Parameters.AddWithValue("previous_hash", (object?)previousHash ?? DBNull.Value);
         var sequence = (long)(await insert.ExecuteScalarAsync(Ct))!;
 
