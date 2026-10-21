@@ -1,7 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="FsCheck.Xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Application\Ledger.Projections.Application.csproj" />
+    <!-- Implémentation en mémoire des ports (session, magasins, journal). -->
+    <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Infrastructure\Ledger.Projections.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

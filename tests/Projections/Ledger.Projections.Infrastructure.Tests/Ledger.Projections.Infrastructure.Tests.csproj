@@ -1,7 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Testcontainers.Kafka" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Infrastructure\Ledger.Projections.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Migrations\Ledger.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fabrique d'événements et jeu d'essai partagés avec les tests de l'Application. -->
+    <Compile Include="..\Ledger.Projections.Application.Tests\Support\JournalBuilder.cs" Link="Support\JournalBuilder.cs" />
+    <Compile Include="..\Ledger.Projections.Application.Tests\Support\Scenario.cs" Link="Support\Scenario.cs" />
   </ItemGroup>
 
 </Project>
