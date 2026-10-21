@@ -15,6 +15,8 @@ internal static class LedgerArchitecture
     public static readonly Assembly ProjectionsApplication = typeof(Ledger.Projections.Application.AssemblyMarker).Assembly;
     public static readonly Assembly ProjectionsInfrastructure = typeof(Ledger.Projections.Infrastructure.AssemblyMarker).Assembly;
     public static readonly Assembly ProjectionsWorker = typeof(Ledger.Projections.Worker.AssemblyMarker).Assembly;
+    public static readonly Assembly QueryApplication = typeof(Ledger.Query.Application.AssemblyMarker).Assembly;
+    public static readonly Assembly QueryInfrastructure = typeof(Ledger.Query.Infrastructure.AssemblyMarker).Assembly;
     public static readonly Assembly QueryApi = typeof(Ledger.Query.Api.AssemblyMarker).Assembly;
     public static readonly Assembly Authorizer = typeof(Ledger.Authorizer.AssemblyMarker).Assembly;
     public static readonly Assembly Migrations = typeof(Ledger.Migrations.AssemblyMarker).Assembly;
@@ -31,6 +33,8 @@ internal static class LedgerArchitecture
             ProjectionsApplication,
             ProjectionsInfrastructure,
             ProjectionsWorker,
+            QueryApplication,
+            QueryInfrastructure,
             QueryApi,
             Authorizer,
             Migrations,

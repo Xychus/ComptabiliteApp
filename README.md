@@ -74,6 +74,21 @@ dotnet run --project src/Command/Ledger.Command.Api
 docker build -f src/Command/Ledger.Command.Api/Dockerfile -t ledger-command-api:<version> .
 ```
 
+## API de requête
+
+Contrat : [`docs/api/query-openapi.json`](docs/api/query-openapi.json), régénéré à chaque build et
+vérifié par le CI ([ADR 0019](docs/adr/0019-api-de-requete.md)). Tout appel exige un jeton JWT
+Keycloak (audience `ledger-api`, scope `ledger:read`). Chaque réponse porte `freshness`
+(`throughSequence`, `journalSequence`, `stale`) ; seuil : `Ledger:Fraicheur:RetardMaximal`.
+
+```bash
+# Développement, lecture en mémoire vide (refusée hors de l'environnement Development)
+ASPNETCORE_ENVIRONMENT=Development Ledger__Lecture__Fournisseur=EnMemoire Ledger__Authentication__Authority=https://<keycloak>/realms/<realm> dotnet run --project src/Query/Ledger.Query.Api
+
+# PostgreSQL : rôle ledger_query (lecture seule des projections et de ledger.events)
+ConnectionStrings__Ledger="Host=...;Username=ledger_query;SSL Mode=VerifyFull" Ledger__Authentication__Authority=https://<keycloak>/realms/<realm> dotnet run --project src/Query/Ledger.Query.Api
+```
+
 En dehors du développement, la chaîne de connexion `ConnectionStrings__Ledger` (rôle `ledger_app`)
 est injectée depuis Secrets Manager. Sondes : `/health/live` et `/health/ready`.
 

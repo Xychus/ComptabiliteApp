@@ -30,7 +30,7 @@ public sealed class LayerDependencyTests
 
     [Fact]
     public void Application_ne_depend_ni_de_l_infrastructure_ni_de_la_composition() =>
-        Types().That().ResideInAssembly(CommandApplication, ProjectionsApplication)
+        Types().That().ResideInAssembly(CommandApplication, ProjectionsApplication, QueryApplication)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(InfrastructureLayerNamespaces)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(CompositionNamespaces)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(InfrastructureNamespaces)
@@ -38,7 +38,7 @@ public sealed class LayerDependencyTests
 
     [Fact]
     public void Infrastructure_ne_depend_pas_de_la_composition() =>
-        Types().That().ResideInAssembly(CommandInfrastructure, ProjectionsInfrastructure)
+        Types().That().ResideInAssembly(CommandInfrastructure, ProjectionsInfrastructure, QueryInfrastructure)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(CompositionNamespaces)
             .Check(Model);
 
@@ -62,6 +62,12 @@ public sealed class LayerDependencyTests
     public void Command_ne_depend_d_aucun_autre_service() =>
         Types().That().ResideInNamespaceMatching(@"^Ledger\.Command(\..*)?$")
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(@"^Ledger\.(Projections|Query|Authorizer)(\..*)?$")
+            .Check(Model);
+
+    [Fact]
+    public void Query_ne_depend_pas_du_service_de_projections() =>
+        Types().That().ResideInNamespaceMatching(@"^Ledger\.Query(\..*)?$")
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(@"^Ledger\.(Projections|Authorizer)(\..*)?$")
             .Check(Model);
 
     [Fact]

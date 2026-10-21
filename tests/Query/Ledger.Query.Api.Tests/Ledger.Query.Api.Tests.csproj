@@ -1,7 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Api\Ledger.Query.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Migrations\Ledger.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Jeu d'essai et base PostgreSQL amorcée, partagés avec les tests de contrat des lecteurs. -->
+    <Compile Include="..\Ledger.Query.Infrastructure.Tests\Support\JeuEssai.cs" Link="Support\JeuEssai.cs" />
+    <Compile Include="..\Ledger.Query.Infrastructure.Tests\Postgres\PostgresLecture.cs" Link="Postgres\PostgresLecture.cs" />
   </ItemGroup>
 
 </Project>

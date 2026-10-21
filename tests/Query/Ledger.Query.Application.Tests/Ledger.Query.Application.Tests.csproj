@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="FsCheck.Xunit.v3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Application\Ledger.Query.Application.csproj" />
+    <!-- Implémentation en mémoire des ports de lecture. -->
+    <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Infrastructure\Ledger.Query.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Ledger.Query.Infrastructure.Tests\Support\JeuEssai.cs" Link="Support\JeuEssai.cs" />
+  </ItemGroup>
+
+</Project>

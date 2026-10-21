@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Infrastructure\Ledger.Query.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Migrations\Ledger.Migrations.csproj" />
+    <!-- Test de bout en bout : les projections réelles alimentent les tables lues par l'API de requête. -->
+    <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Infrastructure\Ledger.Projections.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Fabrique d'événements cohérents, partagée avec les tests des projections. -->
+    <Compile Include="..\..\Projections\Ledger.Projections.Application.Tests\Support\JournalBuilder.cs" Link="Support\JournalBuilder.cs" />
+  </ItemGroup>
+
+</Project>
