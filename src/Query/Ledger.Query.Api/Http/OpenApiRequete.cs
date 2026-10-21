@@ -75,12 +75,11 @@ public static class OpenApiRequete
                     ];
                 }
 
-                foreach (var parametre in (operation.Parameters ?? []).OfType<OpenApiParameter>())
+                var obligatoires = (operation.Parameters ?? []).OfType<OpenApiParameter>()
+                    .Where(p => p.In == ParameterLocation.Query && p.Name is { } nom && ParametresObligatoires.Contains(nom));
+                foreach (var parametre in obligatoires)
                 {
-                    if (parametre.In == ParameterLocation.Query && parametre.Name is { } nom && ParametresObligatoires.Contains(nom))
-                    {
-                        parametre.Required = true;
-                    }
+                    parametre.Required = true;
                 }
 
                 return Task.CompletedTask;

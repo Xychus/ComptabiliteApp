@@ -138,7 +138,9 @@ public abstract class ContratLecteurs
         var contrePassation = await magasin.Ecritures.TrouverEcritureAsync(inverse, Ct);
 
         Assert.NotNull(lue);
-        Assert.Equal((magasin.Entite, _le10Mars, Mars, "Vente", (Guid?)null, (Guid?)inverse, 3L, Origine.AddSeconds(3), Acteur), (lue.Entite, lue.DateAffaires, lue.Periode, lue.Libelle, lue.ContrePassationDe, lue.ContrePasseePar, lue.Sequence, lue.EnregistreeLe, lue.Acteur));
+        Assert.Equal((magasin.Entite, _le10Mars, Mars, "Vente", 3L, Origine.AddSeconds(3), Acteur), (lue.Entite, lue.DateAffaires, lue.Periode, lue.Libelle, lue.Sequence, lue.EnregistreeLe, lue.Acteur));
+        Assert.Null(lue.ContrePassationDe);
+        Assert.Equal(inverse, lue.ContrePasseePar);
         Assert.Equal(
             [
                 new LigneEcritureLue(1, "1000", "Debit", 114.98m, Devise),

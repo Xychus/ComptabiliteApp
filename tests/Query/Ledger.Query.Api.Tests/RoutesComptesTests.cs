@@ -20,7 +20,8 @@ public sealed class RoutesComptesTests(ApiEnMemoire api)
 
         var solde = await api.Client.LireAsync($"/v1/accounts/1000/balance?entityId={entite}").CorpsAsync<AccountBalanceResponse>();
 
-        Assert.Equal((entite, "1000", "Encaisse", "Debit", (DateOnly?)null), (solde.EntityId, solde.AccountId, solde.Name, solde.NormalSide, solde.AsOf));
+        Assert.Equal((entite, "1000", "Encaisse", "Debit"), (solde.EntityId, solde.AccountId, solde.Name, solde.NormalSide));
+        Assert.Null(solde.AsOf);
         Assert.Equal(new CurrencyBalanceDto("CAD", "114.98", "30.00", "84.98"), Assert.Single(solde.Balances));
         Assert.False(solde.Freshness.Stale);
     }

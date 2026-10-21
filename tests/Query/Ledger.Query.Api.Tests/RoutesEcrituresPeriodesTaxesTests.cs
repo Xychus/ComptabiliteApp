@@ -21,7 +21,9 @@ public sealed class RoutesEcrituresPeriodesTaxesTests(ApiEnMemoire api)
 
         var ecriture = await api.Client.LireAsync($"/v1/journal-entries/{vente}").CorpsAsync<JournalEntryDetailResponse>();
 
-        Assert.Equal((vente, entite, Mars, "Vente", (Guid?)null, (Guid?)inverse, 7L, Origine.AddSeconds(7), Acteur), (ecriture.EntryId, ecriture.EntityId, ecriture.Period, ecriture.Description, ecriture.ReversalOf, ecriture.ReversedBy, ecriture.SequenceNumber, ecriture.RecordedAt, ecriture.Actor));
+        Assert.Equal((vente, entite, Mars, "Vente", 7L, Origine.AddSeconds(7), Acteur), (ecriture.EntryId, ecriture.EntityId, ecriture.Period, ecriture.Description, ecriture.SequenceNumber, ecriture.RecordedAt, ecriture.Actor));
+        Assert.Null(ecriture.ReversalOf);
+        Assert.Equal(inverse, ecriture.ReversedBy);
         Assert.Equal(
             [new JournalEntryLineDetailDto(1, "1000", "Debit", new MoneyDto("10.00", "CAD")), new JournalEntryLineDetailDto(2, "4000", "Credit", new MoneyDto("10.00", "CAD"))],
             ecriture.Lines);
@@ -45,7 +47,8 @@ public sealed class RoutesEcrituresPeriodesTaxesTests(ApiEnMemoire api)
 
         var periode = await api.Client.LireAsync($"/v1/periods/{Mars}?entityId={entite}").CorpsAsync<PeriodDetailResponse>();
 
-        Assert.Equal(("Sealed", 2L, (long?)4, racine), (periode.Status, periode.Version, periode.EventCount, periode.MerkleRoot));
+        Assert.Equal(("Sealed", 2L, racine), (periode.Status, periode.Version, periode.MerkleRoot));
+        Assert.Equal(4, periode.EventCount);
         Assert.NotNull(periode.Snapshot);
         Assert.Equal((12L, 4L), (periode.Snapshot.SealSequenceNumber, periode.Snapshot.EventCount));
         Assert.Equal([new PeriodMovementDto("1000", "CAD", "10.00", "0.00"), new PeriodMovementDto("4000", "CAD", "0.00", "10.00")], periode.Snapshot.Movements);

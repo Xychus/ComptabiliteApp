@@ -29,7 +29,8 @@ public sealed class SoldeEtBalanceTests : IDisposable
 
         Assert.Equal(new SoldeDevise("CAD", 105m, 30m, 75m), Assert.Single(encaisse.Soldes));
         Assert.Equal(new SoldeDevise("CAD", 0m, 100m, 100m), Assert.Single(ventes.Soldes));
-        Assert.Equal(("Encaisse", "Debit", (DateOnly?)null), (encaisse.Compte.Nom, encaisse.Compte.SensNormal, encaisse.AuPlusTard));
+        Assert.Equal(("Encaisse", "Debit"), (encaisse.Compte.Nom, encaisse.Compte.SensNormal));
+        Assert.Null(encaisse.AuPlusTard);
     }
 
     [Fact]
