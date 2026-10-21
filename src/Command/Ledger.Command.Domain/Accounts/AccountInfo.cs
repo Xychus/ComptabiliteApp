@@ -17,7 +17,7 @@ public sealed record AccountInfo(
 
 /// <summary>
 /// Port de lecture du plan comptable d'une entité (données de référence, pas une projection).
-/// Implémenté par l'infrastructure à partir de la table <c>accounts</c>.
+/// Construit par l'Application en rejouant le flux <c>chart-{entité}</c> (ADR 0012).
 /// </summary>
 public interface IChartOfAccounts
 {

@@ -4,4 +4,8 @@
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Worker\Ledger.Projections.Worker.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Ledger.Projections.Application.Tests\Support\JournalBuilder.cs" Link="Support\JournalBuilder.cs" />
+  </ItemGroup>
+
 </Project>
