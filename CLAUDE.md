@@ -36,7 +36,7 @@ src/
   Contracts/Ledger.Contracts/              # DTO HTTP + contrats d'événements versionnés
   Command/Ledger.Command.{Domain,Application,Infrastructure,Api}/
   Projections/Ledger.Projections.{Application,Infrastructure,Worker}/
-  Query/Ledger.Query.Api/
+  Query/Ledger.Query.{Application,Infrastructure,Api}/
   Authorizer/Ledger.Authorizer/            # autorizer Lambda (Keycloak)
   Tools/Ledger.Migrations/                 # migrations SQL (DbUp)
   Tools/Ledger.Integrity/                  # vérification hash + balance_after, export archive
@@ -44,7 +44,7 @@ tests/                                     # miroir de src/, un projet de tests 
 infra/
   bootstrap/  modules/  envs/{dev,prod}/  keycloak/
 docs/
-  plan/PLAN.md  adr/  api/openapi.json  runbooks/
+  plan/PLAN.md  adr/  api/{openapi,query-openapi}.json  runbooks/
 .github/workflows/
 ```
 
