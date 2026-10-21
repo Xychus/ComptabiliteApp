@@ -57,6 +57,17 @@ docs/
 
 ## Conventions de code (.NET 10)
 
+- **Langue des identifiants : français, sans accents**, pour tout code nouveau à partir de la
+  phase 4b (décision du 2026-10-20) : classes, interfaces, méthodes, propriétés, champs,
+  variables, paramètres, constantes, et les nouveaux objets SQL et Terraform. Ex. `SoldeCompte`,
+  `IMagasinSoldes`, `periode`, `CalculerSoldeAsync`. Commentaires, messages et noms de tests
+  restent en français accentué.
+  - Exceptions : conventions .NET (préfixe `I`, suffixe `Async`, `Exception`, `Options`,
+    `Tests`), membres imposés par un framework ou une interface existante (`HandleAsync`,
+    `ExecuteAsync`), et **contrats externes**, qui restent en anglais : charges et noms des
+    événements (le hash en dépend), chemins d'URL et champs JSON de l'API HTTP, attributs AWS.
+  - Le code existant (phases 0 à 4a) garde ses noms anglais : on ne le renomme pas en masse.
+    On le réutilise tel quel.
 - SOLID est une exigence, pas une préférence :
   - une classe = une responsabilité (un gestionnaire de commande, une projection, une règle) ;
   - extension par ajout (`IEntryRule`, `IEventHandler<T>`), pas par `if`/`switch` grandissant ;
