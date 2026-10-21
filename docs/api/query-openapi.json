@@ -1,0 +1,1331 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Grand livre — API de requête",
+    "description": "Soldes, balance de vérification, sous-livres, écritures, périodes et TPS/TVQ, lus dans les projections. Chaque réponse porte freshness (throughSequence, journalSequence, stale). Les montants sont des chaînes décimales accompagnées de leur devise. Les erreurs sont des Problem Details (RFC 9457) avec les membres code et details.",
+    "version": "v1"
+  },
+  "paths": {
+    "/v1/accounts/{accountId}/balance": {
+      "get": {
+        "tags": [
+          "Comptes"
+        ],
+        "summary": "Solde d'un compte",
+        "description": "Sans asOf : solde courant. Avec asOf (AAAA-MM-JJ) : somme des lignes dont la date d'affaires est au plus asOf. Le solde est positif dans le sens normal du compte.",
+        "operationId": "GetAccountBalance",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBalanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/accounts/{accountId}/entries": {
+      "get": {
+        "tags": [
+          "Comptes"
+        ],
+        "summary": "Sous-livre d'un compte, paginé par curseur",
+        "description": "Lignes dans l'ordre comptable (date d'affaires, séquence, ligne). limit : 1 à 500 (défaut 100). Passer nextCursor dans cursor pour la page suivante.",
+        "operationId": "GetAccountEntries",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountEntriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/trial-balance": {
+      "get": {
+        "tags": [
+          "Balance"
+        ],
+        "summary": "Balance de vérification",
+        "description": "Une ligne par compte mouvementé et devise, totaux par devise. Sans asOf : balance courante ; avec asOf (AAAA-MM-JJ) : lignes dont la date d'affaires est au plus asOf.",
+        "operationId": "GetTrialBalance",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialBalanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/journal-entries/{entryId}": {
+      "get": {
+        "tags": [
+          "Écritures"
+        ],
+        "summary": "Écriture du grand livre",
+        "description": "Lignes de l'écriture, liens de contre-passation (reversalOf, reversedBy) et champs d'autorité serveur.",
+        "operationId": "GetJournalEntry",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntryDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/periods/{period}": {
+      "get": {
+        "tags": [
+          "Périodes"
+        ],
+        "summary": "État d'une période (AAAA-MM)",
+        "description": "Statut, version du flux (valeur attendue par la commande suivante), empreinte du sceau et, une fois scellée, les mouvements figés de la période.",
+        "operationId": "GetPeriod",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/tax/returns/gst-qst": {
+      "get": {
+        "tags": [
+          "Taxes"
+        ],
+        "summary": "TPS/TVQ perçues, payées et nettes d'une période",
+        "description": "Montants par devise de la période (AAAA-MM) ; net = perçue − payée. periodStatus indique si la période est scellée. Format à valider avec le comptable.",
+        "operationId": "GetGstQstReturn",
+        "parameters": [
+          {
+            "name": "entityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GstQstReturnResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [
+              "ledger:read"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountBalanceResponse": {
+        "required": [
+          "entityId",
+          "accountId",
+          "name",
+          "normalSide",
+          "asOf",
+          "balances",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Code du compte."
+          },
+          "name": {
+            "type": "string",
+            "description": "Libellé du compte."
+          },
+          "normalSide": {
+            "type": "string",
+            "description": "`Debit` ou `Credit`."
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Date d'affaires incluse, ou absente pour le solde courant.",
+            "format": "date"
+          },
+          "balances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyBalanceDto"
+            },
+            "description": "Un solde par devise (au moins celui de la devise du compte)."
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "Solde d'un compte, courant ou à une date d'affaires."
+      },
+      "AccountEntriesResponse": {
+        "required": [
+          "entityId",
+          "accountId",
+          "items",
+          "nextCursor",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "accountId": {
+            "type": "string",
+            "description": "Code du compte."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountEntryLineDto"
+            },
+            "description": "Lignes de la page."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Curseur de la page suivante (paramètre `cursor`), absent sur la dernière page."
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "Page du sous-livre d'un compte, dans l'ordre comptable (date d'affaires, séquence, ligne)."
+      },
+      "AccountEntryLineDto": {
+        "required": [
+          "entryId",
+          "lineNumber",
+          "businessDate",
+          "period",
+          "side",
+          "amount",
+          "sequenceNumber",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "description": "Écriture qui porte la ligne.",
+            "format": "uuid"
+          },
+          "lineNumber": {
+            "type": "integer",
+            "description": "Numéro de la ligne dans l'écriture.",
+            "format": "int32"
+          },
+          "businessDate": {
+            "type": "string",
+            "description": "Date d'affaires.",
+            "format": "date"
+          },
+          "period": {
+            "type": "string",
+            "description": "Période (AAAA-MM)."
+          },
+          "side": {
+            "type": "string",
+            "description": "`Debit` ou `Credit`."
+          },
+          "amount": {
+            "description": "Montant et devise.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Position de l'écriture dans le journal.",
+            "format": "int64"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Libellé de l'écriture."
+          }
+        },
+        "description": "Ligne du sous-livre d'un compte."
+      },
+      "CurrencyBalanceDto": {
+        "required": [
+          "currency",
+          "debits",
+          "credits",
+          "balance"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Code ISO 4217."
+          },
+          "debits": {
+            "type": "string",
+            "description": "Total des débits."
+          },
+          "credits": {
+            "type": "string",
+            "description": "Total des crédits."
+          },
+          "balance": {
+            "type": "string",
+            "description": "Solde, positif dans le sens normal du compte."
+          }
+        },
+        "description": "Solde d'un compte dans une devise."
+      },
+      "FreshnessDto": {
+        "required": [
+          "throughSequence",
+          "journalSequence",
+          "stale"
+        ],
+        "type": "object",
+        "properties": {
+          "throughSequence": {
+            "type": "integer",
+            "description": "Séquence du journal jusqu'à laquelle ces projections ont vu les événements.",
+            "format": "int64"
+          },
+          "journalSequence": {
+            "type": "integer",
+            "description": "Tête du journal au moment de la lecture.",
+            "format": "int64"
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "Vrai si un événement attend d'être projeté depuis plus que le seuil configuré."
+          }
+        },
+        "description": "Fraîcheur des projections qui ont servi à la réponse."
+      },
+      "GstQstAmountsDto": {
+        "required": [
+          "currency",
+          "gstCollected",
+          "gstPaid",
+          "gstNet",
+          "qstCollected",
+          "qstPaid",
+          "qstNet"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "gstCollected": {
+            "type": "string"
+          },
+          "gstPaid": {
+            "type": "string"
+          },
+          "gstNet": {
+            "type": "string"
+          },
+          "qstCollected": {
+            "type": "string"
+          },
+          "qstPaid": {
+            "type": "string"
+          },
+          "qstNet": {
+            "type": "string"
+          }
+        },
+        "description": "Montants de TPS et de TVQ d'une période dans une devise ; net = perçue − payée."
+      },
+      "GstQstReturnResponse": {
+        "required": [
+          "entityId",
+          "period",
+          "periodStatus",
+          "amounts",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "period": {
+            "type": "string",
+            "description": "Période de déclaration (AAAA-MM)."
+          },
+          "periodStatus": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "`Open`, `Sealed`, ou absent si la période n'a jamais été ouverte."
+          },
+          "amounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GstQstAmountsDto"
+            },
+            "description": "Montants par devise ; vide si aucune taxe n'a été comptabilisée."
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "Base de la déclaration TPS/TVQ d'une période (format à valider avec le comptable)."
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "code": {
+            "type": "string",
+            "description": "Code de l'erreur (ex. AccountNotFound) ; type = urn:ledger:problem:{code}."
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Cause précise du rejet (ex. entityId, accountId, period)."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identifiant de trace W3C de la requête."
+          }
+        }
+      },
+      "JournalEntryDetailResponse": {
+        "required": [
+          "entryId",
+          "entityId",
+          "businessDate",
+          "period",
+          "description",
+          "reversalOf",
+          "reversedBy",
+          "sequenceNumber",
+          "recordedAt",
+          "actor",
+          "lines",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "description": "Identifiant de l'écriture.",
+            "format": "uuid"
+          },
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "businessDate": {
+            "type": "string",
+            "description": "Date d'affaires.",
+            "format": "date"
+          },
+          "period": {
+            "type": "string",
+            "description": "Période (AAAA-MM)."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Libellé."
+          },
+          "reversalOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Écriture d'origine, si celle-ci est une contre-passation.",
+            "format": "uuid"
+          },
+          "reversedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Contre-passation qui annule cette écriture, le cas échéant.",
+            "format": "uuid"
+          },
+          "sequenceNumber": {
+            "type": "integer",
+            "description": "Position dans le journal.",
+            "format": "int64"
+          },
+          "recordedAt": {
+            "type": "string",
+            "description": "Horodatage serveur.",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string",
+            "description": "Client qui a passé l'écriture."
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalEntryLineDetailDto"
+            },
+            "description": "Lignes, par numéro."
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "Écriture du grand livre."
+      },
+      "JournalEntryLineDetailDto": {
+        "required": [
+          "lineNumber",
+          "accountId",
+          "side",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "lineNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "accountId": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MoneyDto"
+          }
+        },
+        "description": "Ligne d'une écriture."
+      },
+      "MoneyDto": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Montant en chaîne décimale, jamais un nombre JSON."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Code ISO 4217 (ex. `CAD`)."
+          }
+        },
+        "description": "Montant : chaîne décimale invariante (ex. `\"114.98\"`) et code de devise ISO 4217."
+      },
+      "PeriodDetailResponse": {
+        "required": [
+          "entityId",
+          "period",
+          "status",
+          "version",
+          "openedAt",
+          "sealedAt",
+          "eventCount",
+          "merkleRoot",
+          "snapshot",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "period": {
+            "type": "string",
+            "description": "Période (AAAA-MM)."
+          },
+          "status": {
+            "type": "string",
+            "description": "`Open` ou `Sealed`."
+          },
+          "version": {
+            "type": "integer",
+            "description": "Version du flux de la période (valeur attendue par la commande suivante).",
+            "format": "int64"
+          },
+          "openedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Horodatage de l'ouverture.",
+            "format": "date-time"
+          },
+          "sealedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Horodatage du scellement.",
+            "format": "date-time"
+          },
+          "eventCount": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "Scellement : nombre d'événements scellés.",
+            "format": "int64"
+          },
+          "merkleRoot": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Scellement : racine de Merkle des hash scellés."
+          },
+          "snapshot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Instantané, une fois la période scellée et projetée, si elle a des écritures.",
+                "$ref": "#/components/schemas/PeriodSnapshotDto"
+              }
+            ]
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "État d'une période."
+      },
+      "PeriodMovementDto": {
+        "required": [
+          "accountId",
+          "currency",
+          "debits",
+          "credits"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "debits": {
+            "type": "string"
+          },
+          "credits": {
+            "type": "string"
+          }
+        },
+        "description": "Mouvements d'un compte dans une période scellée."
+      },
+      "PeriodSnapshotDto": {
+        "required": [
+          "sealSequenceNumber",
+          "eventCount",
+          "movements"
+        ],
+        "type": "object",
+        "properties": {
+          "sealSequenceNumber": {
+            "type": "integer",
+            "description": "Position du sceau dans le journal.",
+            "format": "int64"
+          },
+          "eventCount": {
+            "type": "integer",
+            "description": "Nombre d'événements scellés.",
+            "format": "int64"
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PeriodMovementDto"
+            },
+            "description": "Mouvements par compte et devise."
+          }
+        },
+        "description": "Instantané de fin de période, figé au scellement."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Code de l'erreur (ex. AccountNotFound) ; type = urn:ledger:problem:{code}."
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Cause précise du rejet (ex. entityId, accountId, period)."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identifiant de trace W3C de la requête."
+          }
+        }
+      },
+      "TrialBalanceLineDto": {
+        "required": [
+          "accountId",
+          "name",
+          "currency",
+          "debits",
+          "credits",
+          "debitBalance",
+          "creditBalance"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "description": "Code du compte."
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Libellé, absent si le compte n'est pas (encore) dans le plan comptable projeté."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Code ISO 4217."
+          },
+          "debits": {
+            "type": "string",
+            "description": "Total des débits."
+          },
+          "credits": {
+            "type": "string",
+            "description": "Total des crédits."
+          },
+          "debitBalance": {
+            "type": "string",
+            "description": "Solde débiteur (débits − crédits s'il est positif, sinon 0)."
+          },
+          "creditBalance": {
+            "type": "string",
+            "description": "Solde créditeur (crédits − débits s'il est positif, sinon 0)."
+          }
+        },
+        "description": "Ligne de la balance de vérification."
+      },
+      "TrialBalanceResponse": {
+        "required": [
+          "entityId",
+          "asOf",
+          "lines",
+          "totals",
+          "balanced",
+          "freshness"
+        ],
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Entité comptable."
+          },
+          "asOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Date d'affaires incluse, ou absente pour la balance courante.",
+            "format": "date"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrialBalanceLineDto"
+            },
+            "description": "Une ligne par compte mouvementé et devise, triées par code de compte."
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrialBalanceTotalDto"
+            },
+            "description": "Totaux par devise."
+          },
+          "balanced": {
+            "type": "boolean",
+            "description": "Vrai si chaque devise est équilibrée."
+          },
+          "freshness": {
+            "description": "Fraîcheur des projections lues.",
+            "$ref": "#/components/schemas/FreshnessDto"
+          }
+        },
+        "description": "Balance de vérification d'une entité."
+      },
+      "TrialBalanceTotalDto": {
+        "required": [
+          "currency",
+          "debits",
+          "credits",
+          "debitBalance",
+          "creditBalance",
+          "balanced"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Code ISO 4217."
+          },
+          "debits": {
+            "type": "string",
+            "description": "Total des débits."
+          },
+          "credits": {
+            "type": "string",
+            "description": "Total des crédits."
+          },
+          "debitBalance": {
+            "type": "string",
+            "description": "Total des soldes débiteurs."
+          },
+          "creditBalance": {
+            "type": "string",
+            "description": "Total des soldes créditeurs."
+          },
+          "balanced": {
+            "type": "boolean",
+            "description": "Débits = crédits (partie double)."
+          }
+        },
+        "description": "Totaux de la balance dans une devise."
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Jeton Keycloak, audience ledger-api, scope ledger:read.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Comptes"
+    },
+    {
+      "name": "Balance"
+    },
+    {
+      "name": "Écritures"
+    },
+    {
+      "name": "Périodes"
+    },
+    {
+      "name": "Taxes"
+    }
+  ]
+}
