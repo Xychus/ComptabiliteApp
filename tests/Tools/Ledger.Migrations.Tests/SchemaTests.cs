@@ -19,7 +19,7 @@ public sealed class SchemaTests(PostgresFixture database)
     {
         Assert.True(database.FirstRun.Successful, database.FirstRun.Error?.ToString());
         Assert.Equal(
-            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements"],
+            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections"],
             database.FirstRun.ExecutedScripts.Select(name => name.Split('.')[^2]));
     }
 
@@ -100,7 +100,8 @@ public sealed class SchemaTests(PostgresFixture database)
     [InlineData("UPDATE ledger.events_2026 SET actor = 'pirate' WHERE global_sequence = {0}")]
     [InlineData("DELETE FROM ledger.stream_versions WHERE global_sequence = {0}")]
     [InlineData("DELETE FROM ledger.outbox")]
-    [InlineData("UPDATE ledger.accounts SET no_negative_balance = false")]
+    [InlineData("UPDATE ledger.periods SET ends_on = starts_on")]
+    [InlineData("INSERT INTO projections.account_balances VALUES ('E', '1000', 'CAD', 0, 0)")]
     public async Task Le_role_applicatif_n_a_ni_UPDATE_ni_DELETE_ni_TRUNCATE(string statement)
     {
         var sequence = await InsertEventAsync(database.AppConnectionString);
@@ -180,6 +181,30 @@ public sealed class SchemaTests(PostgresFixture database)
         Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_projection', 'ledger.events', 'SELECT')"));
         Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_projection', 'ledger.events', 'INSERT')"));
         Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('debezium', 'ledger.outbox', 'SELECT')"));
+    }
+
+    [Fact]
+    public async Task Le_plan_comptable_de_reference_est_remplace_par_sa_projection()
+    {
+        Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT to_regclass('ledger.accounts') IS NULL"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT to_regclass('projections.chart_of_accounts') IS NULL"));
+    }
+
+    [Fact]
+    public async Task Les_projections_appartiennent_au_worker_et_sont_en_lecture_seule_pour_l_API_de_requete()
+    {
+        Assert.Equal(
+            await ScalarAsync<long>(database.OwnerConnectionString, "SELECT count(*) FROM pg_tables WHERE schemaname = 'projections'"),
+            await ScalarAsync<long>(database.OwnerConnectionString, "SELECT count(*) FROM pg_tables WHERE schemaname = 'projections' AND tableowner = 'ledger_projection'"));
+        Assert.Equal(15L, await ScalarAsync<long>(database.OwnerConnectionString, "SELECT count(*) FROM pg_tables WHERE schemaname = 'projections'"));
+        Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('ledger_projection', 'projections', 'CREATE')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT rolcanlogin FROM pg_roles WHERE rolname = 'ledger_query'"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('ledger_query', 'projections', 'CREATE')"));
+        Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_query', 'projections.account_balances', 'SELECT')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_query', 'projections.account_balances', 'INSERT, UPDATE, DELETE, TRUNCATE')"));
+        Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_query', 'ledger.events', 'SELECT')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_table_privilege('ledger_query', 'ledger.events', 'INSERT')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('ledger_app', 'projections', 'USAGE')"));
     }
 
     [Fact]
