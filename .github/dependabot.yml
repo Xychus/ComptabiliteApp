@@ -49,3 +49,13 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+
+  # Images de la chaîne locale (docker-compose.yml, phase 5). Les images de test Testcontainers
+  # (constantes C#) restent à aligner à la main sur celles-ci.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope

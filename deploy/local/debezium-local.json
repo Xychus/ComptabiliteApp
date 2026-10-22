@@ -1,0 +1,8 @@
+{
+  "database.hostname": "postgres",
+  "database.port": "5432",
+  "database.dbname": "ledger",
+  "database.user": "debezium",
+  "database.password": "${env:LEDGER_DEBEZIUM_PASSWORD}",
+  "database.sslmode": "disable"
+}
