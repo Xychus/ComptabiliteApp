@@ -18,7 +18,8 @@ de Revenu Québec (6 ans, intégrité vérifiable). Services en .NET 10, déploy
 
 ```
 src/        services (Command, Projections, Query, Authorizer), Contracts, SharedKernel, Tools
-tests/      un projet de tests par projet de src/, plus tests/Architecture
+tests/      un projet de tests par projet de src/, plus tests/Architecture et tests/EndToEnd
+deploy/     connecteur Debezium (invariant, réutilisé sur MSK Connect) et chaîne locale
 infra/      Terraform (à partir de la phase 6)
 docs/       plan, ADR, contrat OpenAPI, runbooks
 ```
@@ -91,6 +92,22 @@ ConnectionStrings__Ledger="Host=...;Username=ledger_query;SSL Mode=VerifyFull" L
 
 En dehors du développement, la chaîne de connexion `ConnectionStrings__Ledger` (rôle `ledger_app`)
 est injectée depuis Secrets Manager. Sondes : `/health/live` et `/health/ready`.
+
+## Chaîne complète en local
+
+`docker compose` démarre PostgreSQL (réplication logique), Kafka, Kafka Connect + Debezium,
+Keycloak (realm de test importé), la migration, les deux API et le worker de projections
+([ADR 0020](docs/adr/0020-chaine-cdc-debezium.md)) :
+
+```bash
+cp .env.example .env          # une valeur par variable ; .env n'est jamais versionné
+docker compose up -d --build
+deploy/local/demo.sh          # écriture → outbox → Debezium → Kafka → projection → solde
+```
+
+Détails, ports et clients Keycloak : [`deploy/local/README.md`](deploy/local/README.md). Le même
+assemblage est vérifié par `tests/EndToEnd` (Testcontainers), avec les tests de panne de Kafka et
+de redémarrage du worker.
 
 ## Versions et contributions
 
