@@ -18,7 +18,7 @@ namespace Ledger.Projections.Infrastructure.Tests.Kafka;
 /// <summary>Kafka éphémère (Testcontainers), partagé par la classe de tests.</summary>
 public sealed class KafkaFixture : IAsyncLifetime
 {
-    public const string Image = "confluentinc/cp-kafka:7.9.2";
+    public const string Image = "apache/kafka:4.3.2";
 
     private readonly KafkaContainer _container = new KafkaBuilder(Image).Build();
 
