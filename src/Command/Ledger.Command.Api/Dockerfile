@@ -10,7 +10,7 @@
 
 # SDK de la même version majeure que global.json ; global.json n'est pas copié : il fige le SDK
 # du poste et du CI (bande 10.0.1xx), dont MCR ne publie pas d'image.
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /repo
 
 # Restauration en couche séparée : elle n'est rejouée que si un projet ou une version de paquet change.
@@ -34,7 +34,7 @@ RUN dotnet publish src/Command/Ledger.Command.Api/Ledger.Command.Api.csproj \
       -p:UseAppHost=false -p:OpenApiGenerateDocuments=false
 
 # Image « chiseled » : sans shell ni gestionnaire de paquets, utilisateur non root « app » (uid 1654).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-noble-chiseled AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app .
 ENV ASPNETCORE_HTTP_PORTS=8080 \

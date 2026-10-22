@@ -12,7 +12,7 @@ namespace Ledger.Command.Api.Tests.Postgres;
 public sealed class PostgresApi : IAsyncLifetime
 {
     /// <summary>Même image que les tests de l'event store (point P4 du plan).</summary>
-    public const string Image = "postgres:17.6-alpine";
+    public const string Image = "postgres:18-alpine";
 
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(Image).Build();
 

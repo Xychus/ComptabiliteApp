@@ -2,6 +2,8 @@ using System.Net;
 using Ledger.Command.Api.Composition;
 using Ledger.Command.Api.Http;
 using Ledger.Command.Api.Tests.Support;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Ledger.Command.Api.Tests;
@@ -32,6 +34,19 @@ public sealed class HostingTests
         await using var factory = new LedgerApiFactory(environment: "Production");
 
         Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+    }
+
+    [Theory]
+    [InlineData("Development", false)]
+    [InlineData("Production", true)]
+    public async Task Les_metadonnees_OIDC_en_HTTP_ne_sont_tolerees_qu_en_developpement(string environnement, bool httpsExige)
+    {
+        // Keycloak local sans TLS (docker compose, ADR 0020) ; partout ailleurs, HTTPS exigé.
+        await using var factory = new LedgerApiFactory(connectionString: "Host=localhost;Database=ledger;Username=ledger_app", environment: environnement);
+
+        var jwt = factory.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        Assert.Equal(httpsExige, jwt.RequireHttpsMetadata);
     }
 
     [Fact]

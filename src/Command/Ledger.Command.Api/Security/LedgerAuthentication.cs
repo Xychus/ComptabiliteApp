@@ -51,11 +51,13 @@ public static class LedgerAuthentication
         services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<LedgerAuthenticationOptions>>((jwt, ledger) =>
+            .Configure<IOptions<LedgerAuthenticationOptions>, IHostEnvironment>((jwt, ledger, environnement) =>
             {
                 jwt.Authority = ledger.Value.Authority;
                 jwt.Audience = ledger.Value.Audience;
-                jwt.RequireHttpsMetadata = true;
+
+                // Métadonnées OIDC en HTTP tolérées seulement en développement (Keycloak local, ADR 0020).
+                jwt.RequireHttpsMetadata = !environnement.IsDevelopment();
                 jwt.MapInboundClaims = false;
                 jwt.TokenValidationParameters.NameClaimType = ActorClaim;
                 jwt.TokenValidationParameters.ValidateIssuer = true;
