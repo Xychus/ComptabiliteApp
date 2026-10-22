@@ -51,11 +51,13 @@ public static class AuthentificationRequete
         services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<OptionsAuthentification>>((jwt, reglages) =>
+            .Configure<IOptions<OptionsAuthentification>, IHostEnvironment>((jwt, reglages, environnement) =>
             {
                 jwt.Authority = reglages.Value.Authority;
                 jwt.Audience = reglages.Value.Audience;
-                jwt.RequireHttpsMetadata = true;
+
+                // Métadonnées OIDC en HTTP tolérées seulement en développement (Keycloak local, ADR 0020).
+                jwt.RequireHttpsMetadata = !environnement.IsDevelopment();
                 jwt.MapInboundClaims = false;
                 jwt.TokenValidationParameters.NameClaimType = "azp";
                 jwt.TokenValidationParameters.ValidateIssuer = true;

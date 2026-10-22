@@ -45,6 +45,9 @@
   <Folder Name="/tests/Contracts/">
     <Project Path="tests/Contracts/Ledger.Contracts.Tests/Ledger.Contracts.Tests.csproj" />
   </Folder>
+  <Folder Name="/tests/EndToEnd/">
+    <Project Path="tests/EndToEnd/Ledger.EndToEnd.Tests/Ledger.EndToEnd.Tests.csproj" />
+  </Folder>
   <Folder Name="/tests/Projections/">
     <Project Path="tests/Projections/Ledger.Projections.Application.Tests/Ledger.Projections.Application.Tests.csproj" />
     <Project Path="tests/Projections/Ledger.Projections.Infrastructure.Tests/Ledger.Projections.Infrastructure.Tests.csproj" />

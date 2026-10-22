@@ -19,7 +19,7 @@ public sealed class SchemaTests(PostgresFixture database)
     {
         Assert.True(database.FirstRun.Successful, database.FirstRun.Error?.ToString());
         Assert.Equal(
-            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections"],
+            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections", "0008_publication_et_purge_outbox"],
             database.FirstRun.ExecutedScripts.Select(name => name.Split('.')[^2]));
     }
 

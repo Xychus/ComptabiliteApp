@@ -41,6 +41,10 @@ src/
   Tools/Ledger.Migrations/                 # migrations SQL (DbUp)
   Tools/Ledger.Integrity/                  # vérification hash + balance_after, export archive
 tests/                                     # miroir de src/, un projet de tests par projet
+  EndToEnd/Ledger.EndToEnd.Tests/          # chaîne complète CDC (seule exception au miroir)
+deploy/
+  debezium/                                # connecteur invariant (réutilisé tel quel sur MSK Connect)
+  local/                                   # docker compose : realm Keycloak, rôles, démo
 infra/
   bootstrap/  modules/  envs/{dev,prod}/  keycloak/
 docs/
@@ -115,6 +119,20 @@ checkov -d infra
 - Aucun secret dans le code, les images, les variables d'environnement en clair ou Git.
   Secrets → Secrets Manager, injectés via `secrets` des task definitions.
 - Images : tag = version SemVer exacte, ECR en `IMMUTABLE`. **Jamais `latest`.**
+- Images de base et images tierces (Dockerfiles, `docker-compose.yml`, Testcontainers, CI) :
+  - **image officielle du produit uniquement**, publiée par l'éditeur du produit (ex. `postgres`,
+    `apache/kafka`, `quay.io/keycloak/keycloak`, `quay.io/debezium/connect`,
+    `mcr.microsoft.com/dotnet/*`), jamais une redistribution par un tiers ;
+  - **dernière version stable disponible** au moment de l'ajout ou de la mise à jour, avec un
+    tag **flottant sur le correctif seulement** : `3.7` suit 3.7.x (ex. Debezium `3.7`, Keycloak
+    `26.8`, .NET `10.0`). Pour un produit dont le second chiffre est déjà le correctif
+    (PostgreSQL `18.6`), le tag flottant est la version majeure (`18-alpine`). Si l'éditeur ne
+    publie pas de tag flottant sur le correctif, tag exact. Jamais `latest` ni un tag qui fait
+    changer de version mineure ; jamais de préversion (alpha, bêta, RC, nightly) ;
+  - **variante Alpine** lorsque l'éditeur en publie une, **sauf pour les images .NET**, qui
+    restent en variante « chiseled » (sans shell ni gestionnaire de paquets, surface plus réduite
+    qu'Alpine) ;
+  - la même image et la même version partout où le produit est utilisé (compose, tests, CI).
 - Aucune ressource publique (pas de `publicly_accessible`, pas de bucket public, API Gateway privée).
 
 ## Ce que tu ne dois PAS faire

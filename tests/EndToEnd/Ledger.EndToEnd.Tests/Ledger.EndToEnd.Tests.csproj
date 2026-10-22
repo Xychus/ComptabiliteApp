@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Chaîne complète (phase 5, ADR 0020) : API de commandes → outbox → Debezium → Kafka → worker de
+    projections → API de requête, avec Keycloak. Seul projet de tests sans projet src/ miroir :
+    il assemble tous les composants.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.Kafka" />
+    <PackageReference Include="Confluent.Kafka" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Les deux API déclarent chacune une classe Program publique : alias pour les distinguer. -->
+    <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Api\Ledger.Command.Api.csproj" Aliases="commande" />
+    <ProjectReference Include="..\..\..\src\Query\Ledger.Query.Api\Ledger.Query.Api.csproj" Aliases="requete" />
+    <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Worker\Ledger.Projections.Worker.csproj" />
+    <ProjectReference Include="..\..\..\src\Tools\Ledger.Migrations\Ledger.Migrations.csproj" />
+    <ProjectReference Include="..\..\..\src\Contracts\Ledger.Contracts\Ledger.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Configuration réellement déployée : copiée telle quelle à côté des tests. -->
+    <None Include="..\..\..\deploy\debezium\ledger-outbox.json" Link="deploy\debezium\ledger-outbox.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\deploy\local\debezium-local.json" Link="deploy\local\debezium-local.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\deploy\local\keycloak\ledger-realm.json" Link="deploy\local\keycloak\ledger-realm.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

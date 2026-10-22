@@ -4,6 +4,8 @@ using Ledger.Query.Api.Composition;
 using Ledger.Query.Api.Http;
 using Ledger.Query.Api.Tests.Support;
 using Ledger.Query.Tests.Support;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Ledger.Query.Api.Tests;
@@ -34,6 +36,19 @@ public sealed class HebergementTests
         await using var fabrique = new FabriqueApiRequete(environnement: "Production");
 
         Assert.Throws<InvalidOperationException>(() => fabrique.CreateClient());
+    }
+
+    [Theory]
+    [InlineData("Development", false)]
+    [InlineData("Production", true)]
+    public async Task Les_metadonnees_OIDC_en_HTTP_ne_sont_tolerees_qu_en_developpement(string environnement, bool httpsExige)
+    {
+        // Keycloak local sans TLS (docker compose, ADR 0020) ; partout ailleurs, HTTPS exigé.
+        await using var fabrique = new FabriqueApiRequete(chaineConnexion: "Host=localhost;Database=ledger;Username=ledger_query", environnement: environnement);
+
+        var jwt = fabrique.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        Assert.Equal(httpsExige, jwt.RequireHttpsMetadata);
     }
 
     [Theory]

@@ -1,0 +1,182 @@
+# Chaîne complète en local (phase 5) : PostgreSQL (réplication logique) → outbox → Debezium
+# (Kafka Connect) → Kafka → worker de projections → API de requête, avec Keycloak.
+# Développement uniquement : HTTP sans TLS, mots de passe dans .env (copier .env.example).
+#   docker compose up -d --build        puis voir deploy/local/README.md
+# Ports publiés sur 127.0.0.1 seulement.
+
+name: ledger
+
+x-dotnet-env: &dotnet-env
+  # Development : métadonnées OIDC en HTTP acceptées (Keycloak local) ; jamais en AWS.
+  DOTNET_ENVIRONMENT: Development
+  ASPNETCORE_ENVIRONMENT: Development
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=4", "-c", "max_wal_senders=4"]
+    environment:
+      POSTGRES_DB: ledger
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?voir .env.example}
+    ports: ["127.0.0.1:5433:5432"]
+    # PostgreSQL 18 : données sous /var/lib/postgresql/18/docker, volume monté au parent.
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "ledger"]
+      interval: 2s
+      retries: 30
+
+  migrations:
+    build: { context: ., dockerfile: src/Tools/Ledger.Migrations/Dockerfile }
+    image: ledger-migrations:local
+    environment:
+      LEDGER_MIGRATIONS_CONNECTION_STRING: Host=postgres;Database=ledger;Username=postgres;Password=${POSTGRES_PASSWORD}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  roles:
+    image: postgres:18-alpine
+    entrypoint: ["sh", "/roles-locaux.sh"]
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ledger
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      LEDGER_APP_PASSWORD: ${LEDGER_APP_PASSWORD:?voir .env.example}
+      LEDGER_PROJECTION_PASSWORD: ${LEDGER_PROJECTION_PASSWORD:?voir .env.example}
+      LEDGER_QUERY_PASSWORD: ${LEDGER_QUERY_PASSWORD:?voir .env.example}
+      LEDGER_DEBEZIUM_PASSWORD: ${LEDGER_DEBEZIUM_PASSWORD:?voir .env.example}
+    volumes: ["./deploy/local/roles-locaux.sh:/roles-locaux.sh:ro"]
+    depends_on:
+      migrations: { condition: service_completed_successfully }
+
+  kafka:
+    image: apache/kafka:4.3.2
+    environment:
+      CLUSTER_ID: bGVkZ2VyLWxvY2FsLTAwMQ
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,HOTE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOTE://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,HOTE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Comme sur MSK : les sujets applicatifs sont créés explicitement (service kafka-topics).
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports: ["127.0.0.1:9094:9094"]
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      retries: 30
+
+  kafka-topics:
+    image: apache/kafka:4.3.2
+    entrypoint: ["/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists",
+                 "--topic", "ledger.events", "--partitions", "6", "--replication-factor", "1"]
+    depends_on:
+      kafka: { condition: service_healthy }
+
+  connect:
+    image: quay.io/debezium/connect:3.7
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: ledger-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+      # Worker unique : après une panne de Kafka, ne pas attendre 5 min (défaut) le retour d'un
+      # autre worker avant de réaffecter le connecteur (ADR 0020).
+      CONNECT_SCHEDULED_REBALANCE_MAX_DELAY_MS: "10000"
+      # Les secrets du connecteur sont des références ${env:...} résolues par le worker.
+      CONNECT_CONFIG_PROVIDERS: env
+      CONNECT_CONFIG_PROVIDERS_ENV_CLASS: org.apache.kafka.common.config.provider.EnvVarConfigProvider
+      LEDGER_DEBEZIUM_PASSWORD: ${LEDGER_DEBEZIUM_PASSWORD}
+    ports: ["127.0.0.1:8083:8083"]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8083/connectors"]
+      interval: 5s
+      retries: 60
+    depends_on:
+      kafka-topics: { condition: service_completed_successfully }
+      roles: { condition: service_completed_successfully }
+
+  connect-register:
+    image: quay.io/debezium/connect:3.7
+    entrypoint: ["python3", "/local/enregistrer_connecteur.py", "http://connect:8083", "ledger-outbox",
+                 "/debezium/ledger-outbox.json", "/local/debezium-local.json"]
+    volumes:
+      - ./deploy/debezium:/debezium:ro
+      - ./deploy/local:/local:ro
+    depends_on:
+      connect: { condition: service_healthy }
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?voir .env.example}
+      KC_HEALTH_ENABLED: "true"
+      # Émetteur unique (http://localhost:8180) pour les jetons obtenus depuis le poste ;
+      # les services joignent Keycloak par le réseau interne (keycloak:8080).
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      LEDGER_CLIENT_SECRET: ${LEDGER_CLIENT_SECRET:?voir .env.example}
+      LEDGER_LECTURE_CLIENT_SECRET: ${LEDGER_LECTURE_CLIENT_SECRET:?voir .env.example}
+    volumes: ["./deploy/local/keycloak:/opt/keycloak/data/import:ro"]
+    ports: ["127.0.0.1:8180:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      retries: 60
+
+  command-api:
+    build: { context: ., dockerfile: src/Command/Ledger.Command.Api/Dockerfile }
+    image: ledger-command-api:local
+    read_only: true
+    environment:
+      <<: *dotnet-env
+      Ledger__Authentication__Authority: http://keycloak:8080/realms/ledger
+      ConnectionStrings__Ledger: Host=postgres;Database=ledger;Username=ledger_app;Password=${LEDGER_APP_PASSWORD}
+    ports: ["127.0.0.1:8081:8080"]
+    depends_on:
+      roles: { condition: service_completed_successfully }
+      keycloak: { condition: service_healthy }
+
+  projections-worker:
+    build: { context: ., dockerfile: src/Projections/Ledger.Projections.Worker/Dockerfile }
+    image: ledger-projections-worker:local
+    read_only: true
+    restart: on-failure
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Projections: Host=postgres;Database=ledger;Username=ledger_projection;Password=${LEDGER_PROJECTION_PASSWORD}
+      Ledger__Kafka__BootstrapServers: kafka:9092
+      Ledger__Kafka__SecurityProtocol: Plaintext
+      # Comptes fiscaux de l'entité de démonstration (ADR 0018).
+      Ledger__Tax__Entities__DEMO__GstCollected__0: "2310"
+      Ledger__Tax__Entities__DEMO__QstCollected__0: "2320"
+    depends_on:
+      roles: { condition: service_completed_successfully }
+      kafka-topics: { condition: service_completed_successfully }
+
+  query-api:
+    build: { context: ., dockerfile: src/Query/Ledger.Query.Api/Dockerfile }
+    image: ledger-query-api:local
+    read_only: true
+    environment:
+      <<: *dotnet-env
+      Ledger__Authentication__Authority: http://keycloak:8080/realms/ledger
+      ConnectionStrings__Ledger: Host=postgres;Database=ledger;Username=ledger_query;Password=${LEDGER_QUERY_PASSWORD}
+    ports: ["127.0.0.1:8082:8080"]
+    depends_on:
+      roles: { condition: service_completed_successfully }
+      keycloak: { condition: service_healthy }
+
+volumes:
+  postgres-data:
