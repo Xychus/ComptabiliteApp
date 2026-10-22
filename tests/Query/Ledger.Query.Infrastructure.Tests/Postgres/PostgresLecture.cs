@@ -14,7 +14,7 @@ namespace Ledger.Query.Infrastructure.Tests.Postgres;
 public sealed class PostgresLecture : IAsyncLifetime
 {
     /// <summary>Même version majeure que la cible Aurora (point P4 du plan).</summary>
-    public const string Image = "postgres:17.6-alpine";
+    public const string Image = "postgres:18-alpine";
 
     private const string InsertionEvenement =
         """
