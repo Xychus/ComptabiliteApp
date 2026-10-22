@@ -116,7 +116,7 @@ checkov -d infra
   variables Lambda, état Terraform. Jamais de clé `aws/*` gérée par AWS.
 - TLS partout : `rds.force_ssl=1` + Npgsql `SSL Mode=VerifyFull` ; MSK en TLS ; ALB/API Gateway
   TLS 1.2+ ; service à service en TLS via ECS Service Connect ; services AWS via VPC endpoints.
-- Aucun secret dans le code, les images, les variables d'environnement en clair ou Git.
+- Aucun secret dans le code, les images, les variables d'environnement en clair ou Git. Rotation des secrets obligatoire au 7 jours
   Secrets → Secrets Manager, injectés via `secrets` des task definitions.
 - Images : tag = version SemVer exacte, ECR en `IMMUTABLE`. **Jamais `latest`.**
 - Images de base et images tierces (Dockerfiles, `docker-compose.yml`, Testcontainers, CI) :
