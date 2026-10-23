@@ -52,8 +52,12 @@ l'état Terraform. Un rôle doté d'`AdministratorAccess` ne satisfait pas ces e
 - Une PR exécute son propre code Terraform avec les droits de lecture de `gha-plan` : seules
   les branches du dépôt (pas les forks) obtiennent un jeton, et l'écriture sur le dépôt est
   réservée aux collaborateurs.
-- Le claim `sub` doit garder le format par défaut de GitHub ; une personnalisation au niveau de
-  l'organisation casserait les politiques de confiance.
+- Le claim `sub` dépend de la configuration OIDC du dépôt. Ce dépôt émet des **sujets
+  immuables** (`use_immutable_subject`) : `repo:Xychus@153566096/ComptabiliteApp@1422798619:…`,
+  qui portent les identifiants numériques du propriétaire et du dépôt ; un dépôt supprimé puis
+  recréé sous le même nom n'hérite donc pas de la confiance. L'amorçage les reçoit par
+  `id_organisation_github` / `id_depot_github` (sinon, format par défaut `repo:<org>/<dépôt>`).
+  Toute autre personnalisation du sujet casserait les politiques de confiance.
 
 ## Options écartées
 

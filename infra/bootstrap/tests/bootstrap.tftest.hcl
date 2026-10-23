@@ -133,6 +133,35 @@ run "iam_du_pipeline_sous_frontiere" {
   }
 }
 
+run "sujets_oidc_immuables" {
+  command = apply
+
+  variables {
+    id_organisation_github = 153566096
+    id_depot_github        = 1422798619
+  }
+
+  assert {
+    condition     = jsondecode(aws_iam_role.plan.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:Xychus@153566096/ComptabiliteApp@1422798619:pull_request"
+    error_message = "Le rôle de plan doit accepter le sujet immuable des pull requests."
+  }
+
+  assert {
+    condition     = jsondecode(aws_iam_role.apply.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:Xychus@153566096/ComptabiliteApp@1422798619:environment:dev"
+    error_message = "Le rôle d'apply doit accepter le sujet immuable de l'environnement protégé."
+  }
+}
+
+run "refuse_un_identifiant_github_seul" {
+  command = plan
+
+  variables {
+    id_organisation_github = 153566096
+  }
+
+  expect_failures = [var.id_depot_github]
+}
+
 run "refuse_un_environnement_inconnu" {
   command = plan
 

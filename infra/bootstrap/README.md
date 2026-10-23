@@ -69,8 +69,11 @@ Recommencer pour le compte de production avec `environnement = "prod"`.
 2. **Environnements** `dev` et `prod` (*Settings → Environments*) : branches de déploiement
    limitées à `main` ; pour `prod`, relecteurs obligatoires. Seuls les jobs de ces
    environnements peuvent assumer `gha-apply` (phase 10).
-3. Garder le modèle par défaut du claim `sub` des jetons OIDC (`repo:<org>/<dépôt>:…`) : les
-   politiques de confiance en dépendent.
+3. Le claim `sub` des jetons OIDC doit correspondre à l'amorçage. Le lire avec
+   `gh api repos/<org>/<dépôt>/actions/oidc/customization/sub` : si `use_immutable_subject` vaut
+   `true`, renseigner `id_organisation_github` et `id_depot_github` (les nombres après `@` dans
+   `sub_claim_prefix`) ; sinon les laisser absents. Un écart donne
+   `Not authorized to perform sts:AssumeRoleWithWebIdentity` dans le job de plan.
 
 ## Modifier l'amorçage
 

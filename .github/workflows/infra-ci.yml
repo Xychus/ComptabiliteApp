@@ -107,10 +107,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        environnement: [dev, prod]
+        include:
+          - environnement: dev
+            variable_compte: AWS_ACCOUNT_ID_DEV
+          - environnement: prod
+            variable_compte: AWS_ACCOUNT_ID_PROD
     env:
       ENVIRONNEMENT: ${{ matrix.environnement }}
-      COMPTE_AWS: ${{ matrix.environnement == 'prod' && vars.AWS_ACCOUNT_ID_PROD || vars.AWS_ACCOUNT_ID_DEV }}
+      # Pas de « cond && a || b » : une variable prod vide retomberait sur le compte dev.
+      COMPTE_AWS: ${{ vars[matrix.variable_compte] }}
       REGION_AWS: ${{ vars.AWS_REGION || 'ca-central-1' }}
       REPERTOIRE: infra/envs/${{ matrix.environnement }}
     steps:
@@ -118,7 +123,7 @@ jobs:
         id: compte
         run: |
           if [ -z "$COMPTE_AWS" ]; then
-            echo "::notice::Variable AWS_ACCOUNT_ID_${ENVIRONNEMENT^^} absente : plan ignoré (amorçage non fait)."
+            echo "::notice::Variable ${{ matrix.variable_compte }} absente : plan ignoré (amorçage non fait)."
             echo "pret=false" >> "$GITHUB_OUTPUT"
           else
             echo "pret=true" >> "$GITHUB_OUTPUT"

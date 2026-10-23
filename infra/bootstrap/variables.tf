@@ -34,6 +34,27 @@ variable "depot_github" {
   type        = string
 }
 
+variable "id_organisation_github" {
+  description = <<-EOT
+    Identifiant numérique du propriétaire du dépôt, si le dépôt émet des sujets OIDC immuables
+    (« use_immutable_subject » : gh api repos/<org>/<dépôt>/actions/oidc/customization/sub).
+    Laisser null pour le format par défaut « repo:<org>/<dépôt> ».
+  EOT
+  type        = number
+  default     = null
+}
+
+variable "id_depot_github" {
+  description = "Identifiant numérique du dépôt (sujets OIDC immuables) ; fourni avec id_organisation_github."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = (var.id_depot_github == null) == (var.id_organisation_github == null)
+    error_message = "id_organisation_github et id_depot_github se fournissent ensemble."
+  }
+}
+
 variable "administrateurs" {
   description = <<-EOT
     ARN (motifs ArnLike acceptés) des administrateurs humains : ils appliquent l'amorçage,

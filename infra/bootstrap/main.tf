@@ -3,14 +3,17 @@
 # Les noms sont fixes : le pipeline les reconstruit à partir du seul numéro de compte.
 
 locals {
-  racine            = "arn:aws:iam::${var.compte_aws}:root"
-  nom_bucket_etat   = "ledger-tfstate-${var.compte_aws}-${var.region}"
-  arn_bucket_etat   = "arn:aws:s3:::${local.nom_bucket_etat}"
-  arn_role_plan     = "arn:aws:iam::${var.compte_aws}:role/bootstrap/gha-plan"
-  arn_role_apply    = "arn:aws:iam::${var.compte_aws}:role/bootstrap/gha-apply"
-  administrateurs   = distinct(concat(var.administrateurs, [local.racine]))
-  lecteurs_etat     = concat(local.administrateurs, [local.arn_role_plan, local.arn_role_apply])
-  depot_github      = "${var.organisation_github}/${var.depot_github}"
+  racine          = "arn:aws:iam::${var.compte_aws}:root"
+  nom_bucket_etat = "ledger-tfstate-${var.compte_aws}-${var.region}"
+  arn_bucket_etat = "arn:aws:s3:::${local.nom_bucket_etat}"
+  arn_role_plan   = "arn:aws:iam::${var.compte_aws}:role/bootstrap/gha-plan"
+  arn_role_apply  = "arn:aws:iam::${var.compte_aws}:role/bootstrap/gha-apply"
+  administrateurs = distinct(concat(var.administrateurs, [local.racine]))
+  lecteurs_etat   = concat(local.administrateurs, [local.arn_role_plan, local.arn_role_apply])
+  # Sujet OIDC : format immuable « repo:<org>@<id>/<dépôt>@<id> » si les identifiants sont
+  # fournis (ADR 0021), sinon format par défaut « repo:<org>/<dépôt> ».
+  sujet_github = (var.id_organisation_github == null ? "repo:${var.organisation_github}/${var.depot_github}"
+  : "repo:${var.organisation_github}@${var.id_organisation_github}/${var.depot_github}@${var.id_depot_github}")
   emetteur_github   = "token.actions.githubusercontent.com"
   contexte_s3_etat  = [local.arn_bucket_etat, "${local.arn_bucket_etat}/*"]
   via_s3            = "s3.${var.region}.amazonaws.com"
@@ -201,7 +204,7 @@ resource "aws_iam_role" "plan" {
       Condition = {
         StringEquals = {
           "${local.emetteur_github}:aud" = "sts.amazonaws.com"
-          "${local.emetteur_github}:sub" = "repo:${local.depot_github}:pull_request"
+          "${local.emetteur_github}:sub" = "${local.sujet_github}:pull_request"
         }
       }
     }]
@@ -253,7 +256,7 @@ resource "aws_iam_role" "apply" {
       Condition = {
         StringEquals = {
           "${local.emetteur_github}:aud" = "sts.amazonaws.com"
-          "${local.emetteur_github}:sub" = "repo:${local.depot_github}:environment:${var.environnement}"
+          "${local.emetteur_github}:sub" = "${local.sujet_github}:environment:${var.environnement}"
         }
       }
     }]
