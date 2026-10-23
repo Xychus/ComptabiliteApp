@@ -1,0 +1,8 @@
+# Configuration Checkov du dépôt (lue automatiquement depuis la racine : « checkov -d infra »).
+# Vérifications maison : infra/checkov/verifications (CMK obligatoire, jamais de clé aws/*).
+framework:
+  - terraform
+external-checks-dir:
+  - infra/checkov/verifications
+compact: true
+quiet: true

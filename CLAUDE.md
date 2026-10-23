@@ -105,8 +105,10 @@ dotnet test --solution Ledger.slnx                                             #
 dotnet test --solution Ledger.slnx --filter-not-trait "Category=Integration"   # rapide, sans Docker
 terraform -chdir=infra/envs/dev fmt -check -recursive
 terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/envs/dev validate
-tflint --recursive --chdir infra
-checkov -d infra
+tflint --init --config "$PWD/infra/.tflint.hcl"
+tflint --recursive --chdir infra --config "$PWD/infra/.tflint.hcl"   # sans --config : règles par défaut seulement
+checkov -d infra                       # depuis la racine : .checkov.yaml charge les vérifications maison
+terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem reseau, ecr, bootstrap
 ```
 
 ## Sécurité (non négociable)
