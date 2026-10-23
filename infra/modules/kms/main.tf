@@ -13,7 +13,7 @@ locals {
   # « services » : préfixes des points de terminaison autorisés par kms:ViaService.
   domaines = {
     aurora       = { description = "Aurora PostgreSQL : journal comptable et projections", services = ["rds"] }
-    msk          = { description = "Amazon MSK : transport des événements", services = ["kafka"] }
+    kafka        = { description = "Kafka autogéré : volumes EBS des brokers (ADR 0024)", services = ["ec2"] }
     "s3-archive" = { description = "S3 : archive d'intégrité (conservation de 6 ans)", services = ["s3"] }
     secrets      = { description = "Secrets Manager : mots de passe et clés applicatives", services = ["secretsmanager"] }
     logs         = { description = "CloudWatch Logs : journaux applicatifs et journaux de flux VPC", services = [] }

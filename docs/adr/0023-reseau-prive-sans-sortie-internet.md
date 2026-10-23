@@ -8,14 +8,14 @@
 
 Aucune ressource ne doit être publique, et les services AWS doivent être joints par des
 points de terminaison VPC (CLAUDE.md). Le plan autorise un sous-réseau public « seulement pour
-un NAT si nécessaire ». Les charges prévues (ECS Fargate, Aurora, MSK, MSK Connect, autorizer
-Lambda) n'ont besoin, aux phases 7 et 8, que de services AWS.
+un NAT si nécessaire ». Les charges prévues (ECS Fargate, Aurora, Kafka et Debezium sur ECS,
+autorizer Lambda) n'ont besoin, aux phases 7 et 8, que de services AWS.
 
 ## Décision
 
 1. Module `infra/modules/reseau` : un VPC (`/16`), **deux niveaux de sous-réseaux privés sur
    trois zones** — `applications` (ECS, Lambda, points de terminaison) et `donnees` (Aurora,
-   MSK) —, chacun un `/20`. Aucune adresse publique, **aucune passerelle Internet, aucun NAT**,
+   brokers Kafka) —, chacun un `/20`. Aucune adresse publique, **aucune passerelle Internet, aucun NAT**,
    une table de routage par niveau avec la seule route locale (plus la passerelle S3).
 2. Points de terminaison d'interface, DNS privé, dans les trois sous-réseaux `applications` :
    `kms`, `secretsmanager`, `ssm`, `ecr.api`, `ecr.dkr`, `logs`, `sts`, `execute-api`. Groupe
@@ -35,9 +35,9 @@ Lambda) n'ont besoin, aux phases 7 et 8, que de services AWS.
 - **Phase 9** : l'autorizer Lambda doit obtenir les clés publiques (JWKS) du realm Keycloak.
   Si Keycloak n'est pas joignable de façon privée (VPC, PrivateLink, VPN), il faudra soit un
   NAT et un sous-réseau public (amendement de cet ADR), soit fournir les clés autrement.
-- Chaque phase ajoute ses propres groupes de sécurité (Aurora, MSK, ECS) en référençant le
+- Chaque phase ajoute ses propres groupes de sécurité (Aurora, Kafka, ECS) en référençant le
   VPC et les sous-réseaux exportés ; d'autres points de terminaison seront ajoutés au besoin
-  (ex. `kafka`, `monitoring`, `ssmmessages`) par la variable `services_points_de_terminaison`.
+  (ex. `monitoring`, `ssmmessages`, `ec2` pour les instances ECS de Kafka) par la variable `services_points_de_terminaison`.
 - Coût : huit points de terminaison d'interface sur trois zones, facturés à l'heure.
 - Les noms de zones ne désignent pas les mêmes zones physiques d'un compte à l'autre ; sans
   incidence tant qu'aucune ressource n'est partagée entre comptes.

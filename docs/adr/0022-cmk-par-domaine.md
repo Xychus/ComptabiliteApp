@@ -15,7 +15,7 @@ données d'un domaine, hors du service qui les détient.
 ## Décision
 
 1. Module `infra/modules/kms` : neuf CMK symétriques, alias `alias/ledger-<domaine>` —
-   `aurora`, `msk`, `s3-archive`, `secrets`, `logs`, `ecr`, `ecs`, `lambda`, `ssm` — rotation
+   `aurora`, `kafka` (volumes EBS des brokers, via EC2 ; anciennement `msk`, ADR 0024), `s3-archive`, `secrets`, `logs`, `ecr`, `ecs`, `lambda`, `ssm` — rotation
    automatique (365 jours par défaut), suppression après 30 jours d'attente.
 2. Politique de chaque clé :
    - **Administration** : actions de gestion seulement (ni chiffrement, ni `CreateGrant`),
@@ -47,7 +47,7 @@ données d'un domaine, hors du service qui les détient.
   de la clé).
 - Un administrateur peut toujours réécrire la politique d'une clé (`PutKeyPolicy`) ; cette
   action est tracée par CloudTrail et fera l'objet d'une alarme (phase 11).
-- Ajouter un service consommateur d'un domaine (ex. MSK Connect pour `msk`, AWS Backup pour
+- Ajouter un service consommateur d'un domaine (ex. le rôle lié au service d'Auto Scaling pour `kafka`, AWS Backup pour
   `aurora`) impose de compléter le catalogue du module : un consommateur oublié échoue
   explicitement, il n'obtient pas d'accès implicite.
 - La condition Fargate sur `ledger-*` sera resserrée sur le nom exact de la grappe en phase 8.

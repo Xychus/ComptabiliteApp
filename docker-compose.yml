@@ -66,7 +66,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      # Comme sur MSK : les sujets applicatifs sont créés explicitement (service kafka-topics).
+      # Comme en AWS : les sujets applicatifs sont créés explicitement (service kafka-topics).
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     ports: ["127.0.0.1:9094:9094"]
     healthcheck:

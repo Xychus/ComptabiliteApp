@@ -1,7 +1,7 @@
 # VPC entièrement privé : aucun sous-réseau public, aucune passerelle Internet ni NAT. Les
 # services AWS sont joints par des points de terminaison VPC (CLAUDE.md, « Sécurité »).
 # Deux niveaux de sous-réseaux sur trois zones : « applications » (ECS, Lambda, points de
-# terminaison) et « donnees » (Aurora, MSK).
+# terminaison) et « donnees » (Aurora, brokers Kafka).
 
 locals {
   niveaux = {

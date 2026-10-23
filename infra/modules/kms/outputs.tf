@@ -1,5 +1,5 @@
 output "arns" {
-  description = "ARN de la clé de chaque domaine (aurora, msk, s3-archive, secrets, logs, ecr, ecs, lambda, ssm)."
+  description = "ARN de la clé de chaque domaine (aurora, kafka, s3-archive, secrets, logs, ecr, ecs, lambda, ssm)."
   value       = { for domaine, cle in aws_kms_key.cle : domaine => cle.arn }
 }
 

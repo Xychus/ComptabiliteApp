@@ -12,7 +12,7 @@ run "une_cle_par_domaine_avec_rotation" {
   command = apply
 
   assert {
-    condition     = toset(keys(aws_kms_key.cle)) == toset(["aurora", "msk", "s3-archive", "secrets", "logs", "ecr", "ecs", "lambda", "ssm"])
+    condition     = toset(keys(aws_kms_key.cle)) == toset(["aurora", "kafka", "s3-archive", "secrets", "logs", "ecr", "ecs", "lambda", "ssm"])
     error_message = "Une clé par domaine de données est attendue."
   }
 
@@ -57,6 +57,11 @@ run "aucun_usage_cryptographique_hors_service" {
   assert {
     condition     = [for s in jsondecode(aws_kms_key.cle["aurora"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "UsageViaService"][0] == ["rds.ca-central-1.amazonaws.com"]
     error_message = "La clé aurora n'est utilisable que via RDS."
+  }
+
+  assert {
+    condition     = [for s in jsondecode(aws_kms_key.cle["kafka"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "UsageViaService"][0] == ["ec2.ca-central-1.amazonaws.com"]
+    error_message = "La clé kafka n'est utilisable que via EC2 (volumes EBS des brokers)."
   }
 
   assert {

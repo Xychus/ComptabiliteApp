@@ -31,7 +31,7 @@ l'état Terraform. Un rôle doté d'`AdministratorAccess` ne satisfait pas ces e
    - refus explicites sur le bucket et la clé de l'état (suppression, politique, versionnage,
      chiffrement, désactivation ou suppression de clé, alias).
 4. **Frontière de permissions** `ledger-frontiere-charges` : plafond de tout rôle créé par le
-   pipeline (tâches ECS, Lambda, MSK Connect, journaux de flux). Elle énumère les actions de
+   pipeline (tâches ECS, brokers Kafka et Debezium, Lambda, journaux de flux). Elle énumère les actions de
    données utiles aux charges et **refuse toute action IAM, Organizations et Account**. Elle
    n'accorde rien seule : la permission effective est l'intersection avec la politique du rôle.
 5. Les ressources de l'amorçage vivent sous `/bootstrap/`, hors du chemin géré par le

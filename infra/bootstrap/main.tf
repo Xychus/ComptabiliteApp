@@ -347,7 +347,7 @@ resource "aws_iam_role_policy" "apply_iam" {
 
 # --- Frontière de permissions des rôles créés par le pipeline --------------------------------
 
-# Plafond des rôles de charge (tâches ECS, Lambda, MSK Connect, journaux de flux…). Elle
+# Plafond des rôles de charge (tâches ECS, brokers Kafka et Debezium, Lambda, journaux de flux…). Elle
 # n'accorde rien par elle-même : la permission effective est l'intersection avec la politique
 # du rôle. Toute action IAM, Organizations ou Account en est exclue. À élargir ici (amorçage
 # appliqué par un administrateur) si une phase ultérieure en a besoin.
@@ -372,7 +372,6 @@ resource "aws_iam_policy" "frontiere" {
           "ec2:AssignPrivateIpAddresses", "ec2:CreateNetworkInterface", "ec2:CreateNetworkInterfacePermission",
           "ec2:DeleteNetworkInterface", "ec2:Describe*", "ec2:UnassignPrivateIpAddresses",
           "ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:GetAuthorizationToken", "ecr:GetDownloadUrlForLayer",
-          "kafka:Describe*", "kafka:GetBootstrapBrokers", "kafka-cluster:*",
           "kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey*", "kms:ReEncrypt*",
           "logs:CreateLogGroup", "logs:CreateLogStream", "logs:DescribeLogGroups", "logs:DescribeLogStreams", "logs:PutLogEvents",
           "rds-db:connect",
