@@ -31,7 +31,7 @@
   <ItemGroup Label="Données">
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="dbup-postgresql" Version="7.0.1" />
-    <PackageVersion Include="Confluent.Kafka" Version="2.15.1" />
+    <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
   </ItemGroup>
 
   <ItemGroup Label="Tests">
