@@ -7,7 +7,7 @@ Le plan de mise en œuvre est dans `docs/plan/PLAN.md`. Travaille **une phase à
 
 Grand livre comptable en partie double, en *event sourcing* + CQRS, conforme aux exigences de
 conservation de Revenu Québec (6 ans, intégrité vérifiable), déployé sur AWS (Aurora PostgreSQL,
-MSK, ECS Fargate, API Gateway privée), services en .NET 10, infrastructure en Terraform.
+ECS Fargate, API Gateway privée) avec un Kafka autogéré (image officielle, KRaft), services en .NET 10, infrastructure en Terraform.
 
 ## Invariants d'architecture (ne jamais enfreindre)
 
@@ -43,7 +43,7 @@ src/
 tests/                                     # miroir de src/, un projet de tests par projet
   EndToEnd/Ledger.EndToEnd.Tests/          # chaîne complète CDC (seule exception au miroir)
 deploy/
-  debezium/                                # connecteur invariant (réutilisé tel quel sur MSK Connect)
+  debezium/                                # connecteur invariant (réutilisé tel quel sur ECS)
   local/                                   # docker compose : realm Keycloak, rôles, démo
 infra/
   bootstrap/  modules/  envs/{dev,prod}/  keycloak/
@@ -105,17 +105,23 @@ dotnet test --solution Ledger.slnx                                             #
 dotnet test --solution Ledger.slnx --filter-not-trait "Category=Integration"   # rapide, sans Docker
 terraform -chdir=infra/envs/dev fmt -check -recursive
 terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/envs/dev validate
-tflint --recursive --chdir infra
-checkov -d infra
+tflint --init --config "$PWD/infra/.tflint.hcl"
+tflint --recursive --chdir infra --config "$PWD/infra/.tflint.hcl"   # sans --config : règles par défaut seulement
+checkov -d infra                       # depuis la racine : .checkov.yaml charge les vérifications maison
+terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem reseau, ecr, bootstrap
 ```
 
 ## Sécurité (non négociable)
 
 - Chiffrement au repos avec des **CMK gérées par le client** (une par domaine de données) sur :
-  Aurora, MSK, S3, Secrets Manager, SSM, ECR, journaux CloudWatch, stockage éphémère Fargate,
+  Aurora, volumes EBS de Kafka, S3, Secrets Manager, SSM, ECR, journaux CloudWatch, stockage éphémère Fargate,
   variables Lambda, état Terraform. Jamais de clé `aws/*` gérée par AWS.
-- TLS partout : `rds.force_ssl=1` + Npgsql `SSL Mode=VerifyFull` ; MSK en TLS ; ALB/API Gateway
-  TLS 1.2+ ; service à service en TLS via ECS Service Connect ; services AWS via VPC endpoints.
+- TLS partout : `rds.force_ssl=1` + Npgsql `SSL Mode=VerifyFull` ; Kafka en **mTLS** (écouteurs
+  SSL seulement, ACL par identité de certificat) ; ALB/API Gateway TLS 1.2+ ; service à service en
+  TLS (HTTPS par Kestrel) ; services AWS via VPC endpoints.
+- PKI interne (ADR 0010) : racine OpenSSL hors ligne détenue par l'organisation, CA intermédiaire
+  dans Secrets Manager, certificats finaux de 7 jours. **Jamais d'AWS Private CA** (ni le TLS natif
+  d'ECS Service Connect, qui l'exige).
 - Aucun secret dans le code, les images, les variables d'environnement en clair ou Git. Rotation des secrets obligatoire au 7 jours
   Secrets → Secrets Manager, injectés via `secrets` des task definitions.
 - Images : tag = version SemVer exacte, ECR en `IMMUTABLE`. **Jamais `latest`.**

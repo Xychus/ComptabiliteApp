@@ -1,13 +1,13 @@
 # Connecteur Debezium de l'outbox
 
 `ledger-outbox.json` est la configuration **invariante** du connecteur (ADR 0020) : la même en
-local, en test et sur MSK Connect (phase 7). Elle ne contient aucune valeur propre à un
+local, en test et sur ECS (phase 8, ADR 0024). Elle ne contient aucune valeur propre à un
 environnement et ne doit jamais en contenir (vérifié par `ConfigurationConnecteurTests`).
 
 Chaque environnement fournit uniquement ces paramètres, fusionnés sans pouvoir redéfinir une clé
 invariante :
 
-| Paramètre | Local (`deploy/local/debezium-local.json`) | AWS (phase 7) |
+| Paramètre | Local (`deploy/local/debezium-local.json`) | AWS (phase 8) |
 |---|---|---|
 | `database.hostname` | `postgres` | point de terminaison Aurora (écrivain) |
 | `database.port` | `5432` | `5432` |
@@ -17,7 +17,7 @@ invariante :
 | `database.sslmode` | `disable` | `verify-full` |
 | `database.sslrootcert` | — | certificat racine RDS |
 
-Version : image Debezium `3.7` (tag flottant sur le correctif) ; le plugin MSK Connect suit la même version mineure. Le sujet `ledger.events` est créé par
+Version : image Debezium `3.7` (tag flottant sur le correctif), la même en local et sur ECS. Le sujet `ledger.events` est créé par
 l'infrastructure, pas par le connecteur.
 
 Enregistrement manuel auprès d'un Kafka Connect :

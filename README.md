@@ -2,7 +2,7 @@
 
 Grand livre en partie double, en *event sourcing* + CQRS, conforme aux exigences de conservation
 de Revenu Québec (6 ans, intégrité vérifiable). Services en .NET 10, déployés sur AWS
-(Aurora PostgreSQL, MSK, ECS Fargate, API Gateway privée), infrastructure en Terraform.
+(Aurora PostgreSQL, ECS Fargate, API Gateway privée) avec un Kafka autogéré, infrastructure en Terraform.
 
 - Règles du projet : [`CLAUDE.md`](CLAUDE.md)
 - Plan de mise en œuvre par phases : [`docs/plan/PLAN.md`](docs/plan/PLAN.md)
@@ -19,7 +19,7 @@ de Revenu Québec (6 ans, intégrité vérifiable). Services en .NET 10, déploy
 ```
 src/        services (Command, Projections, Query, Authorizer), Contracts, SharedKernel, Tools
 tests/      un projet de tests par projet de src/, plus tests/Architecture et tests/EndToEnd
-deploy/     connecteur Debezium (invariant, réutilisé sur MSK Connect) et chaîne locale
+deploy/     connecteur Debezium (invariant, réutilisé sur ECS) et chaîne locale
 infra/      Terraform (à partir de la phase 6)
 docs/       plan, ADR, contrat OpenAPI, runbooks
 ```

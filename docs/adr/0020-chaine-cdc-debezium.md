@@ -10,7 +10,8 @@ L'outbox (ADR 0007) est écrite dans la transaction de chaque événement ; le w
 (ADR 0015) attend dans Kafka l'enveloppe `EventEnvelopeV1` en JSON, avec l'entité pour clé.
 Il restait à relier les deux par Debezium, d'une façon qui :
 
-- fonctionne à l'identique en local (Kafka Connect) et sur MSK Connect (phase 7), où la
+- fonctionne à l'identique en local et sur AWS (Kafka Connect dans les deux cas, ADR 0024 ;
+  MSK Connect était prévu à l'origine), où la
   configuration d'un connecteur est une table clé → valeur fournie par Terraform ;
 - ne perde ni ne saute aucun événement, y compris ceux écrits avant la création du connecteur,
   pendant une panne de Kafka ou au redémarrage de Connect ;
@@ -21,14 +22,14 @@ Il restait à relier les deux par Debezium, d'une façon qui :
 
 1. **Configuration en deux parties.** `deploy/debezium/ledger-outbox.json` contient tout ce qui
    ne dépend pas de l'environnement, sous forme d'objet JSON plat (le corps de
-   `PUT /connectors/{nom}/config`, et la table `connector_configuration` de MSK Connect via
+   `PUT /connectors/{nom}/config`, et la configuration du connecteur sur ECS via
    `jsondecode(file(...))`, **sans** `templatefile` : la valeur `${routedByValue}` appartient à
    Debezium). Chaque environnement fournit seulement les paramètres `database.hostname`,
    `database.port`, `database.dbname`, `database.user`, `database.password`,
    `database.sslmode` (et `database.sslrootcert` en AWS). La fusion **refuse** qu'un paramètre
    redéfinisse une clé invariante (`deploy/local/enregistrer_connecteur.py`, et la même règle
    dans les tests). Le mot de passe n'est jamais une valeur littérale : référence de fournisseur
-   de configuration (`${env:…}` en local, Secrets Manager sur MSK Connect).
+   de configuration (`${env:…}` en local, secret injecté sur ECS).
 2. **Routeur d'outbox** (`io.debezium.transforms.outbox.EventRouter`) : identifiant =
    `event_id`, clé = `partition_key` (l'entité), valeur = `payload` (l'enveloppe, non
    développée : `table.expand.json.payload=false`), sujet = colonne `topic` (`ledger.events`).
@@ -77,16 +78,16 @@ Il restait à relier les deux par Debezium, d'une façon qui :
 
 ## Conséquences
 
-- Phase 7 : le module MSK Connect lit le même fichier ; il fournit les paramètres d'Aurora
-  (`database.sslmode=verify-full`, certificat racine RDS), le mot de passe par le fournisseur de
-  configuration Secrets Manager, le plugin Debezium de la même version mineure (`3.7`), et crée le sujet
-  `ledger.events` (nombre de partitions à fixer). Vérifier que MSK Connect accepte les
-  surcharges `producer.override.*` (sinon : configuration de worker personnalisée).
+- Phase 8 (ADR 0024, qui remplace MSK Connect par Debezium sur ECS) : le module `debezium` lit
+  le même fichier ; il fournit les paramètres d'Aurora (`database.sslmode=verify-full`,
+  certificat racine RDS), le mot de passe par un secret injecté, la même image que le local
+  (`3.7`), et le module `kafka` crée le sujet `ledger.events` (nombre de partitions à fixer).
+  Les surcharges `producer.override.*` restent sous notre contrôle (configuration du worker).
 - Le slot `ledger_outbox` retient le WAL tant que Debezium ne confirme pas : une panne prolongée
   du connecteur fait croître le stockage d'Aurora. Alarmes à prévoir en phase 11 : état du
   connecteur et de sa tâche, âge du slot (`pg_replication_slots`), retard du groupe Kafka.
-- Sur MSK Connect, le comportement de rééquilibrage est géré par AWS : un connecteur en échec
-  doit être détecté par l'alarme ci-dessus.
+- Sur ECS, un seul worker Connect comme en local (`scheduled.rebalance.max.delay.ms=10000`) :
+  un connecteur en échec doit être détecté par l'alarme ci-dessus.
 - Images officielles, dernière version stable, tag flottant sur le correctif (règle de
   `CLAUDE.md`) : un correctif de Debezium, Keycloak ou PostgreSQL arrive sans commit et est
   vérifié par le test de bout en bout à chaque exécution du CI. Un changement de version mineure

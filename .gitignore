@@ -65,6 +65,17 @@ coverage/
 *.tfstate
 *.tfstate.*
 *.tfplan
+# Surcharges locales (ex. backend local du premier apply de l'amorçage)
+override.tf
+*_override.tf
+# Les modules ne sont pas des configurations racines : pas de verrou des fournisseurs
+infra/modules/**/.terraform.lock.hcl
+# Fichiers de variables locaux. Dépôt public : les variables d'amorçage (numéro de compte,
+# rôles d'administration) restent hors de Git ; seul l'exemple est versionné.
+*.auto.tfvars
+infra/bootstrap/*.tfvars
+!infra/bootstrap/exemple.tfvars
+__pycache__/
 crash.log
 override.tf
 override.tf.json

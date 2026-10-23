@@ -1,0 +1,227 @@
+name: infra-ci
+
+# Vérifications de l'infrastructure (phase 6) : fmt, validate, terraform test, TFLint, Checkov,
+# puis terraform plan de chaque environnement publié en commentaire de la pull request.
+# Aucun apply ici (infra-apply.yml, phase 7) ; aucun identifiant AWS stocké dans GitHub : OIDC uniquement.
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".checkov.yaml"
+      - ".github/workflows/infra-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugins
+
+jobs:
+  verifications:
+    name: Terraform (fmt, validate, tests, TFLint, Checkov)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Version de Terraform
+        id: version
+        run: echo "terraform=$(cat infra/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+
+      - name: Cache des fournisseurs
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+
+      - name: Format
+        run: terraform fmt -check -recursive -diff infra
+
+      # Configurations racines : le verrou des fournisseurs versionné doit suffire (-lockfile=readonly).
+      - name: Validate
+        run: |
+          for d in infra/bootstrap infra/envs/dev infra/envs/prod; do
+            echo "::group::$d"
+            terraform -chdir="$d" init -backend=false -lockfile=readonly -no-color > /dev/null
+            terraform -chdir="$d" validate -no-color
+            echo "::endgroup::"
+          done
+          for d in infra/modules/*/; do
+            echo "::group::$d"
+            terraform -chdir="$d" init -backend=false -no-color > /dev/null
+            terraform -chdir="$d" validate -no-color
+            echo "::endgroup::"
+          done
+
+      # Fournisseur simulé (mock_provider) : aucun appel AWS.
+      - name: terraform test
+        run: |
+          for d in infra/bootstrap infra/modules/*/; do
+            echo "::group::$d"
+            terraform -chdir="$d" test -no-color
+            echo "::endgroup::"
+          done
+
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.64.0
+
+      - name: TFLint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
+          tflint --recursive --chdir infra --config "$GITHUB_WORKSPACE/infra/.tflint.hcl" --format compact
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # .checkov.yaml (racine) charge les vérifications maison (infra/checkov/verifications).
+      - name: Checkov
+        run: |
+          pip install --quiet checkov==3.3.30
+          checkov -d infra
+
+  plan:
+    name: Plan (${{ matrix.environnement }})
+    needs: verifications
+    # Les pull requests de forks n'obtiennent pas de jeton OIDC.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Volontairement sans « environment: » : le jeton doit porter
+    # sub = repo:<dépôt>:pull_request, seul sujet accepté par gha-plan (ADR 0021).
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environnement: dev
+            variable_compte: AWS_ACCOUNT_ID_DEV
+          - environnement: prod
+            variable_compte: AWS_ACCOUNT_ID_PROD
+    env:
+      ENVIRONNEMENT: ${{ matrix.environnement }}
+      # Pas de « cond && a || b » : une variable prod vide retomberait sur le compte dev.
+      COMPTE_AWS: ${{ vars[matrix.variable_compte] }}
+      REGION_AWS: ${{ vars.AWS_REGION || 'ca-central-1' }}
+      REPERTOIRE: infra/envs/${{ matrix.environnement }}
+    steps:
+      - name: Compte amorcé
+        id: compte
+        run: |
+          if [ -z "$COMPTE_AWS" ]; then
+            echo "::notice::Variable ${{ matrix.variable_compte }} absente : plan ignoré (amorçage non fait)."
+            echo "pret=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pret=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.compte.outputs.pret == 'true'
+
+      - name: Version de Terraform
+        if: steps.compte.outputs.pret == 'true'
+        id: version
+        run: echo "terraform=$(cat infra/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v4
+        if: steps.compte.outputs.pret == 'true'
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        if: steps.compte.outputs.pret == 'true'
+        with:
+          role-to-assume: arn:aws:iam::${{ env.COMPTE_AWS }}:role/bootstrap/gha-plan
+          role-session-name: gha-plan-${{ github.run_id }}
+          aws-region: ${{ env.REGION_AWS }}
+
+      # Noms reconstruits par convention (infra/bootstrap) à partir du seul numéro de compte.
+      - name: Init
+        if: steps.compte.outputs.pret == 'true'
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          terraform -chdir="$REPERTOIRE" init -lockfile=readonly -no-color \
+            -backend-config="bucket=ledger-tfstate-${COMPTE_AWS}-${REGION_AWS}" \
+            -backend-config="region=${REGION_AWS}" \
+            -backend-config="kms_key_id=arn:aws:kms:${REGION_AWS}:${COMPTE_AWS}:alias/ledger-tfstate"
+
+      - name: Plan
+        if: steps.compte.outputs.pret == 'true'
+        id: plan
+        env:
+          TF_VAR_compte_aws: ${{ env.COMPTE_AWS }}
+          TF_VAR_region: ${{ env.REGION_AWS }}
+        run: |
+          set +e
+          terraform -chdir="$REPERTOIRE" plan -no-color -lock-timeout=5m -out=plan.tfplan > plan.log 2>&1
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            terraform -chdir="$REPERTOIRE" show -no-color plan.tfplan > plan.txt
+          else
+            cp plan.log plan.txt
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Commentaire de la pull request
+        if: steps.compte.outputs.pret == 'true'
+        uses: actions/github-script@v9
+        env:
+          CODE: ${{ steps.plan.outputs.code }}
+        with:
+          script: |
+            const fs = require('fs');
+            const environnement = process.env.ENVIRONNEMENT;
+            const marqueur = `<!-- infra-plan-${environnement} -->`;
+            let texte = fs.readFileSync('plan.txt', 'utf8');
+            const resume = (texte.match(/^(Plan:.*|No changes\..*)$/m) || ['(aucun résumé)'])[0];
+            const maximum = 60000;
+            if (texte.length > maximum) {
+              texte = '… (début tronqué : voir les journaux du job)\n' + texte.slice(-maximum);
+            }
+            const statut = process.env.CODE === '0' ? '✅' : '❌ échec';
+            const corps = [
+              marqueur,
+              `### Terraform plan — \`${environnement}\` ${statut}`,
+              '',
+              `**${resume}**`,
+              '',
+              '<details><summary>Détail du plan</summary>',
+              '',
+              '```',
+              texte,
+              '```',
+              '</details>',
+              '',
+              `_Commit ${context.payload.pull_request.head.sha.slice(0, 7)}, exécution ${context.runId}._`,
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const commentaires = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existant = commentaires.find(c => c.user.type === 'Bot' && c.body.includes(marqueur));
+            if (existant) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existant.id, body: corps });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: corps });
+            }
+
+      - name: Résultat du plan
+        if: steps.compte.outputs.pret == 'true' && steps.plan.outputs.code != '0'
+        run: |
+          echo "::error::terraform plan a échoué (code ${{ steps.plan.outputs.code }})."
+          exit 1

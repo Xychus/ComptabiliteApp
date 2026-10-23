@@ -33,7 +33,7 @@ updates:
       actions:
         patterns: ["*"]
 
-  # Les répertoires Terraform et les Dockerfile arrivent aux phases 3 et 6.
+  # Configurations racines Terraform (verrous des fournisseurs) : infra/bootstrap, infra/envs/*.
   - package-ecosystem: terraform
     directories: ["/infra/**"]
     schedule:
