@@ -68,7 +68,7 @@ Recommencer pour le compte de production avec `environnement = "prod"`.
    Tant qu'une variable de compte est absente, le plan de cet environnement est ignoré.
 2. **Environnements** `dev` et `prod` (*Settings → Environments*) : branches de déploiement
    limitées à `main` ; pour `prod`, relecteurs obligatoires. Seuls les jobs de ces
-   environnements peuvent assumer `gha-apply` (phase 10).
+   environnements peuvent assumer `gha-apply` (`infra-apply.yml` : dev en phase 7, prod en phase 10).
 3. Le claim `sub` des jetons OIDC doit correspondre à l'amorçage. Le lire avec
    `gh api repos/<org>/<dépôt>/actions/oidc/customization/sub` : si `use_immutable_subject` vaut
    `true`, renseigner `id_organisation_github` et `id_depot_github` (les nombres après `@` dans

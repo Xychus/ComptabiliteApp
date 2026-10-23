@@ -2,7 +2,7 @@ name: infra-ci
 
 # Vérifications de l'infrastructure (phase 6) : fmt, validate, terraform test, TFLint, Checkov,
 # puis terraform plan de chaque environnement publié en commentaire de la pull request.
-# Aucun apply ici (phase 10) ; aucun identifiant AWS stocké dans GitHub : OIDC uniquement.
+# Aucun apply ici (infra-apply.yml, phase 7) ; aucun identifiant AWS stocké dans GitHub : OIDC uniquement.
 on:
   pull_request:
     paths:
