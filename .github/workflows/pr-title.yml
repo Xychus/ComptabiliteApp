@@ -44,6 +44,7 @@ jobs:
             ci
             docs
           requireScope: false
-          subjectPattern: ^(?![A-Z]).+$
+          # Exception : Dependabot écrit toujours « Bump … » et ne permet pas de changer la casse.
+          subjectPattern: ^(?![A-Z]).+$|^Bump .+$
           subjectPatternError: |
             Le sujet « {subject} » doit commencer par une minuscule.
