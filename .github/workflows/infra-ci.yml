@@ -81,7 +81,7 @@ jobs:
           tflint --init --config "$GITHUB_WORKSPACE/infra/.tflint.hcl"
           tflint --recursive --chdir infra --config "$GITHUB_WORKSPACE/infra/.tflint.hcl" --format compact
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
