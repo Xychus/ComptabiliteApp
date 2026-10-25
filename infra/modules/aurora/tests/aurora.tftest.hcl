@@ -63,8 +63,8 @@ run "tls_exige_et_replication_logique" {
   }
 
   assert {
-    condition     = one([for p in aws_rds_cluster_parameter_group.grappe.parameter : p.value if p.name == "ssl_min_protocol_version"]) == "TLSv1.2"
-    error_message = "TLS 1.2 au minimum est exigé."
+    condition     = one([for p in aws_rds_cluster_parameter_group.grappe.parameter : p.value if p.name == "ssl_min_protocol_version"]) == "TLSv1.3"
+    error_message = "TLS 1.3 au minimum est exigé : le serveur et tous ses clients le prennent en charge."
   }
 
   assert {

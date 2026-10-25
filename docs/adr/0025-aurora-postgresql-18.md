@@ -32,7 +32,9 @@ déploiement.
    `auto_minor_version_upgrade = false`, `allow_major_version_upgrade = false`. Une montée de
    version majeure exige de supprimer les slots (documentation AWS) : elle fera l'objet d'un
    runbook.
-2. **Paramètres de grappe** : `rds.force_ssl = 1`, `ssl_min_protocol_version = TLSv1.2`,
+2. **Paramètres de grappe** : `rds.force_ssl = 1`, `ssl_min_protocol_version = TLSv1.3` (TLS 1.3
+   privilégié, CLAUDE.md : pris en charge depuis Aurora PostgreSQL 15.3, par Npgsql sous .NET 10 /
+   OpenSSL 3 et par Debezium sous Java 21),
    `rds.logical_replication = 1`, journalisation des connexions, du DDL (`log_statement = ddl`)
    et des requêtes de plus d'une seconde. Pas de `log_statement = all` : les valeurs des écritures
    comptables et le texte des `ALTER ROLE … PASSWORD` finiraient dans les journaux.

@@ -1,7 +1,9 @@
 # Grappe Aurora PostgreSQL du journal comptable (source de vérité, ADR 0007). Tout est chiffré
 # par des CMK (CLAUDE.md, « Sécurité ») : stockage et Performance Insights par « aurora », secret
 # du mot de passe maître par « secrets », journaux exportés par « logs ». TLS exigé
-# (rds.force_ssl), réplication logique active pour Debezium (ADR 0020), aucune exposition publique.
+# (rds.force_ssl), en TLS 1.3 au minimum : Aurora 18, Npgsql (.NET 10, OpenSSL 3) et Debezium
+# (Java 21) le prennent tous en charge. Réplication logique active pour Debezium (ADR 0020),
+# aucune exposition publique.
 
 locals {
   famille_parametres = "aurora-postgresql${split(".", var.version_moteur)[0]}"
@@ -10,7 +12,7 @@ locals {
   # Paramètres statiques appliqués au redémarrage ; à la création, la grappe démarre avec eux.
   parametres_grappe = {
     "rds.force_ssl"              = { valeur = "1", application = "pending-reboot" }
-    "ssl_min_protocol_version"   = { valeur = "TLSv1.2", application = "pending-reboot" }
+    "ssl_min_protocol_version"   = { valeur = "TLSv1.3", application = "pending-reboot" }
     "rds.logical_replication"    = { valeur = "1", application = "pending-reboot" }
     "log_connections"            = { valeur = "1", application = "immediate" }
     "log_disconnections"         = { valeur = "1", application = "immediate" }
@@ -42,7 +44,7 @@ resource "aws_security_group" "aurora" {
 resource "aws_rds_cluster_parameter_group" "grappe" {
   name        = "${var.prefixe}-${local.famille_parametres}"
   family      = local.famille_parametres
-  description = "TLS exige, replication logique, journalisation des connexions et du DDL"
+  description = "TLS 1.3 exige, replication logique, journalisation des connexions et du DDL"
 
   dynamic "parameter" {
     for_each = local.parametres_grappe
