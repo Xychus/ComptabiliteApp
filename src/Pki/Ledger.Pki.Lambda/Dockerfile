@@ -28,7 +28,8 @@ FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app .
 # Certificats racines RDS (TLS VerifyFull vers Aurora pour la rotation des mots de passe), empreinte épinglée.
-ADD --chmod=444 --checksum=sha256:90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b     https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-ca-global.pem
+ADD --chmod=444 --checksum=sha256:90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b \
+    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-ca-global.pem
 ENV DOTNET_EnableDiagnostics=0
 USER 1654
 ENTRYPOINT ["dotnet", "Ledger.Pki.Lambda.dll"]
