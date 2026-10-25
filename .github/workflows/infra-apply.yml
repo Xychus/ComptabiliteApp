@@ -1,0 +1,108 @@
+name: infra-apply
+
+# Application de l'infrastructure en dev (phase 7) : init → plan -out → apply de ce plan exact.
+# Rôle gha-apply par OIDC, jeton émis dans l'environnement GitHub « dev » (sujet
+# repo:<dépôt>:environment:dev, seul accepté par gha-apply, ADR 0021). Prod : phase 10.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/envs/**"
+      - "infra/modules/**"
+      - "infra/.terraform-version"
+      - ".github/workflows/infra-apply.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un seul apply à la fois, jamais interrompu : un apply annulé laisse l'état à moitié écrit.
+concurrency:
+  group: infra-apply-dev
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugins
+
+jobs:
+  apply:
+    name: Apply (dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      COMPTE_AWS: ${{ vars.AWS_ACCOUNT_ID_DEV }}
+      REGION_AWS: ${{ vars.AWS_REGION || 'ca-central-1' }}
+      REPERTOIRE: infra/envs/dev
+    steps:
+      # Contrairement au plan des pull requests, un apply sans compte est une erreur.
+      - name: Compte amorcé
+        run: |
+          if [ -z "$COMPTE_AWS" ]; then
+            echo "::error::Variable AWS_ACCOUNT_ID_DEV absente : amorçage du compte dev requis (infra/bootstrap)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - name: Version de Terraform
+        id: version
+        run: echo "terraform=$(cat infra/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ env.COMPTE_AWS }}:role/bootstrap/gha-apply
+          role-session-name: gha-apply-${{ github.run_id }}
+          aws-region: ${{ env.REGION_AWS }}
+
+      # Mêmes paramètres de backend qu'infra-ci.yml (noms reconstruits depuis le numéro de compte).
+      - name: Init
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          terraform -chdir="$REPERTOIRE" init -lockfile=readonly -no-color \
+            -backend-config="bucket=ledger-tfstate-${COMPTE_AWS}-${REGION_AWS}" \
+            -backend-config="region=${REGION_AWS}" \
+            -backend-config="kms_key_id=arn:aws:kms:${REGION_AWS}:${COMPTE_AWS}:alias/ledger-tfstate"
+
+      # -detailed-exitcode : 0 = aucun changement, 2 = changements, 1 = erreur.
+      - name: Plan
+        id: plan
+        env:
+          TF_VAR_compte_aws: ${{ env.COMPTE_AWS }}
+          TF_VAR_region: ${{ env.REGION_AWS }}
+        run: |
+          set +e
+          terraform -chdir="$REPERTOIRE" plan -no-color -lock-timeout=5m -detailed-exitcode -out=plan.tfplan
+          code=$?
+          set -e
+          if [ "$code" -eq 1 ]; then
+            echo "::error::terraform plan a échoué."
+            exit 1
+          fi
+          echo "changements=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Terraform plan — \`dev\`"
+            echo
+            echo '```'
+            terraform -chdir="$REPERTOIRE" show -no-color plan.tfplan | grep -E '^(Plan:|No changes\.)' || echo "(aucun résumé)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Applique exactement le plan enregistré : aucune variable ni rafraîchissement supplémentaire.
+      - name: Apply
+        if: steps.plan.outputs.changements == 'true'
+        run: terraform -chdir="$REPERTOIRE" apply -no-color -lock-timeout=5m plan.tfplan
+
+      - name: Aucun changement
+        if: steps.plan.outputs.changements != 'true'
+        run: echo "::notice::Aucun changement à appliquer en dev."
