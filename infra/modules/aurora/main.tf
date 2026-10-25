@@ -14,7 +14,7 @@ locals {
     "rds.force_ssl"              = { valeur = "1", application = "pending-reboot" }
     "ssl_min_protocol_version"   = { valeur = "TLSv1.3", application = "pending-reboot" }
     "rds.logical_replication"    = { valeur = "1", application = "pending-reboot" }
-    "log_connections"            = { valeur = "1", application = "immediate" }
+    "log_connections"            = { valeur = "all", application = "immediate" } # PostgreSQL 18 : liste d'aspects, plus un booléen
     "log_disconnections"         = { valeur = "1", application = "immediate" }
     "log_statement"              = { valeur = "ddl", application = "immediate" }
     "log_min_duration_statement" = { valeur = "1000", application = "immediate" }

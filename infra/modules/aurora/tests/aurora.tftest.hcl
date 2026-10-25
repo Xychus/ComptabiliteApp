@@ -71,6 +71,12 @@ run "tls_exige_et_replication_logique" {
     condition     = one([for p in aws_rds_cluster_parameter_group.grappe.parameter : p.value if p.name == "rds.logical_replication"]) == "1"
     error_message = "La réplication logique (wal_level = logical) est exigée par Debezium."
   }
+
+  # PostgreSQL 18 : log_connections est une liste d'aspects ; Aurora refuse l'ancienne valeur booléenne « 1 ».
+  assert {
+    condition     = one([for p in aws_rds_cluster_parameter_group.grappe.parameter : p.value if p.name == "log_connections"]) == "all"
+    error_message = "log_connections doit valoir « all » (réception, authentification, autorisation, durées)."
+  }
 }
 
 run "prive_protege_et_sauvegarde" {
