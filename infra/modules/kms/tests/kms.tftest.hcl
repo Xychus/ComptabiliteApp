@@ -64,6 +64,19 @@ run "aucun_usage_cryptographique_hors_service" {
     error_message = "La clé kafka n'est utilisable que via EC2 (volumes EBS des brokers)."
   }
 
+  # RDS crée une autorisation sur la clé secrets (secret maître d'Aurora), et rien de plus.
+  assert {
+    condition = (one([for s in jsondecode(aws_kms_key.cle["secrets"].policy).Statement : s if s.Sid == "AutorisationsRdsSecretMaitre"]).Action == ["kms:CreateGrant"]
+      && one([for s in jsondecode(aws_kms_key.cle["secrets"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "AutorisationsRdsSecretMaitre"]) == "rds.ca-central-1.amazonaws.com"
+    && one([for s in jsondecode(aws_kms_key.cle["secrets"].policy).Statement : s.Condition.Bool["kms:GrantIsForAWSResource"] if s.Sid == "AutorisationsRdsSecretMaitre"]) == "true")
+    error_message = "La clé secrets n'accorde à RDS que la création d'autorisations pour une ressource AWS."
+  }
+
+  assert {
+    condition     = [for s in jsondecode(aws_kms_key.cle["secrets"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "UsageViaService"][0] == ["secretsmanager.ca-central-1.amazonaws.com"]
+    error_message = "Le chiffrement par la clé secrets reste réservé à Secrets Manager."
+  }
+
   assert {
     condition     = [for s in jsondecode(aws_kms_key.cle["logs"].policy).Statement : s.Principal.Service if s.Sid == "CloudWatchLogs"][0] == "logs.ca-central-1.amazonaws.com"
     error_message = "La clé logs doit être utilisable par CloudWatch Logs."
