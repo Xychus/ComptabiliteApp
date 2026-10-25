@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Application\Ledger.Pki.Application.csproj" />
+    <!-- Implémentations en mémoire des ports (magasin, signataire, publicateur). -->
+    <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Infrastructure\Ledger.Pki.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
