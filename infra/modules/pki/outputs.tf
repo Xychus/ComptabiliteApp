@@ -22,3 +22,8 @@ output "certificat_racine_pem" {
   description = "Certificat racine (public) : ancre de confiance des magasins."
   value       = var.certificat_racine_pem
 }
+
+output "secrets_mots_de_passe" {
+  description = "ARN du secret de chaque mot de passe PostgreSQL (champs JSON : utilisateur, mot_de_passe)."
+  value       = { for cle, s in aws_secretsmanager_secret.mot_de_passe : cle => s.arn }
+}

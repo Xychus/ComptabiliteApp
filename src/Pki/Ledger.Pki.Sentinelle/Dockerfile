@@ -23,9 +23,17 @@ COPY src/Pki/ src/Pki/
 RUN dotnet publish src/Pki/Ledger.Pki.Sentinelle/Ledger.Pki.Sentinelle.csproj \
       --no-restore -c Release -o /app -p:UseAppHost=false
 
+# Point de montage du volume partagé de la tâche : ECS copie dans le volume le répertoire déclaré
+# par VOLUME, avec ses permissions (sinon root:root 0755, interdit en écriture à un conteneur non
+# root). 1777 comme /tmp : chaque conteneur écrit sous son uid (1000 Kafka, 1001 Debezium), les
+# fichiers restent en 0600, le bit collant interdit de supprimer ceux d'un autre.
+RUN mkdir -p /volumes/certificats && chmod 1777 /volumes/certificats
+
 FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app .
+COPY --from=build /volumes/ /
+VOLUME /certificats
 ENV DOTNET_EnableDiagnostics=0
 USER 1654
 ENTRYPOINT ["dotnet", "Ledger.Pki.Sentinelle.dll"]

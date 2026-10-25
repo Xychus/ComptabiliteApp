@@ -32,7 +32,23 @@ locals {
   }
 
   certificats_acm = compact([for i in values(var.identites) : i.certificat_acm_arn])
-  services_ecs    = distinct(flatten([for i in values(var.identites) : i.services]))
+  services_ecs = distinct(concat(
+    flatten([for i in values(var.identites) : i.services]),
+    flatten([for m in values(var.mots_de_passe_postgres) : m.services]),
+  ))
+
+  etiquettes_mots_de_passe = {
+    for cle, m in var.mots_de_passe_postgres : cle => merge(
+      {
+        "rotation:type" = "mot-de-passe-postgres"
+        "pg:role"       = m.role
+      },
+      length(m.services) > 0 ? { "pki:grappe" = var.nom_grappe, "pki:services" = join(" ", m.services) } : {},
+    )
+  }
+
+  rotation_mots_de_passe = local.lambda_active && var.aurora != null
+  acces_aurora           = var.aurora != null && length(var.mots_de_passe_postgres) > 0
 }
 
 # --- Clés de l'intermédiaire (une par génération) ----------------------------------------------
@@ -118,6 +134,41 @@ resource "aws_secretsmanager_secret_rotation" "certificat" {
   for_each = local.rotation_active ? var.identites : {}
 
   secret_id           = aws_secretsmanager_secret.certificat[each.key].id
+  rotation_lambda_arn = aws_lambda_function.pki[0].arn
+  rotate_immediately  = true
+
+  rotation_rules {
+    automatically_after_days = var.jours_entre_rotations
+  }
+
+  depends_on = [aws_lambda_permission.secrets_manager]
+}
+
+# --- Mots de passe PostgreSQL (rôles sans authentification IAM) ------------------------------
+
+resource "aws_secretsmanager_secret" "mot_de_passe" {
+  #checkov:skip=CKV2_AWS_57:Rotation activée par aws_secretsmanager_secret_rotation dès que la Lambda existe.
+  for_each = var.mots_de_passe_postgres
+
+  name                    = "${var.prefixe}/postgres/${each.key}"
+  description             = "Mot de passe du role PostgreSQL ${each.value.role}, renouvele par la Lambda PKI"
+  kms_key_id              = var.cle_kms_secrets_arn
+  recovery_window_in_days = var.fenetre_recuperation_secrets_jours
+
+  tags = local.etiquettes_mots_de_passe[each.key]
+
+  lifecycle {
+    precondition {
+      condition     = var.aurora != null
+      error_message = "« aurora » est exigé pour renouveler un mot de passe PostgreSQL."
+    }
+  }
+}
+
+resource "aws_secretsmanager_secret_rotation" "mot_de_passe" {
+  for_each = local.rotation_mots_de_passe ? var.mots_de_passe_postgres : {}
+
+  secret_id           = aws_secretsmanager_secret.mot_de_passe[each.key].id
   rotation_lambda_arn = aws_lambda_function.pki[0].arn
   rotate_immediately  = true
 
@@ -223,6 +274,28 @@ resource "aws_iam_role_policy" "lambda" {
       ] : d if length(var.identites) > 0],
       [for d in [
         {
+          Sid      = "RotationMotsDePasse"
+          Effect   = "Allow"
+          Action   = ["secretsmanager:DescribeSecret", "secretsmanager:GetSecretValue", "secretsmanager:PutSecretValue", "secretsmanager:UpdateSecretVersionStage"]
+          Resource = [for s in aws_secretsmanager_secret.mot_de_passe : s.arn]
+        },
+        # Secret maître géré par RDS (chiffré par la même CMK « secrets ») : administration des rôles.
+        {
+          Sid      = "SecretMaitreAurora"
+          Effect   = "Allow"
+          Action   = "secretsmanager:GetSecretValue"
+          Resource = try(var.aurora.secret_maitre_arn, "")
+        },
+        {
+          Sid       = "ChiffrementMotsDePasse"
+          Effect    = "Allow"
+          Action    = ["kms:Decrypt", "kms:GenerateDataKey"]
+          Resource  = var.cle_kms_secrets_arn
+          Condition = { StringEquals = { "kms:ViaService" = "secretsmanager.${var.region}.amazonaws.com" } }
+        },
+      ] : d if local.acces_aurora],
+      [for d in [
+        {
           Sid      = "ReimportAcm"
           Effect   = "Allow"
           Action   = "acm:ImportCertificate"
@@ -268,6 +341,30 @@ resource "aws_vpc_security_group_egress_rule" "lambda_vers_points_de_terminaison
   referenced_security_group_id = var.groupe_securite_points_de_terminaison
 }
 
+# Rotation des mots de passe : PostgreSQL (TLS) vers Aurora ; la règle d'entrée est posée sur le
+# groupe d'Aurora (le module aurora ne connaît pas ses clients).
+resource "aws_vpc_security_group_egress_rule" "lambda_vers_aurora" {
+  count = local.acces_aurora ? 1 : 0
+
+  security_group_id            = aws_security_group.lambda.id
+  description                  = "PostgreSQL (TLS) vers Aurora : rotation des mots de passe"
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  referenced_security_group_id = var.aurora.groupe_securite
+}
+
+resource "aws_vpc_security_group_ingress_rule" "aurora_depuis_lambda" {
+  count = local.acces_aurora ? 1 : 0
+
+  security_group_id            = var.aurora.groupe_securite
+  description                  = "PostgreSQL depuis la Lambda PKI (rotation des mots de passe)"
+  ip_protocol                  = "tcp"
+  from_port                    = 5432
+  to_port                      = 5432
+  referenced_security_group_id = aws_security_group.lambda.id
+}
+
 resource "aws_vpc_security_group_egress_rule" "lambda_vers_s3" {
   security_group_id = aws_security_group.lambda.id
   description       = "HTTPS vers S3 (passerelle)"
@@ -296,14 +393,19 @@ resource "aws_lambda_function" "pki" {
   reserved_concurrent_executions = 2
 
   environment {
-    variables = local.autorite_installee ? {
-      Ledger__Pki__CertificatIntermediaire = var.certificat_intermediaire_pem
-      Ledger__Pki__CertificatRacine        = var.certificat_racine_pem
-      Ledger__Pki__CleIntermediaire        = aws_kms_key.intermediaire[var.generation_active].arn
-      DOTNET_EnableDiagnostics             = "0"
-      } : {
-      DOTNET_EnableDiagnostics = "0"
-    }
+    variables = merge(
+      { DOTNET_EnableDiagnostics = "0" },
+      local.autorite_installee ? {
+        Ledger__Pki__CertificatIntermediaire = var.certificat_intermediaire_pem
+        Ledger__Pki__CertificatRacine        = var.certificat_racine_pem
+        Ledger__Pki__CleIntermediaire        = aws_kms_key.intermediaire[var.generation_active].arn
+      } : {},
+      local.acces_aurora ? {
+        Ledger__Pki__Postgres__Hote         = var.aurora.hote
+        Ledger__Pki__Postgres__Base         = var.aurora.base
+        Ledger__Pki__Postgres__SecretMaitre = var.aurora.secret_maitre_arn
+      } : {},
+    )
   }
 
   vpc_config {

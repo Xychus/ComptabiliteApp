@@ -188,6 +188,44 @@ run "intermediaire_installee_rotation_active" {
   }
 }
 
+run "mot_de_passe_de_debezium_renouvele_meme_en_mode_ceremonie" {
+  command = apply
+
+  variables {
+    version_image             = "0.1.0"
+    generations_intermediaire = ["2026"]
+    mots_de_passe_postgres    = { debezium = { role = "debezium", services = ["debezium"] } }
+    aurora = {
+      hote              = "ledger-dev.cluster-abc.ca-central-1.rds.amazonaws.com"
+      base              = "ledger"
+      secret_maitre_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:rds-cluster-abc"
+      groupe_securite   = "sg-0000000000000aaaa"
+    }
+  }
+
+  assert {
+    condition     = length(aws_secretsmanager_secret_rotation.mot_de_passe) == 1 && length(aws_secretsmanager_secret_rotation.certificat) == 0
+    error_message = "Le mot de passe tourne sans attendre l'intermédiaire ; les certificats attendent."
+  }
+
+  assert {
+    condition = (aws_secretsmanager_secret.mot_de_passe["debezium"].tags["rotation:type"] == "mot-de-passe-postgres"
+      && aws_secretsmanager_secret.mot_de_passe["debezium"].tags["pg:role"] == "debezium"
+    && aws_secretsmanager_secret.mot_de_passe["debezium"].kms_key_id == var.cle_kms_secrets_arn)
+    error_message = "Secret étiqueté par type et rôle, chiffré par la CMK « secrets »."
+  }
+
+  assert {
+    condition     = aws_lambda_function.pki[0].environment[0].variables["Ledger__Pki__Postgres__SecretMaitre"] == var.aurora.secret_maitre_arn
+    error_message = "La Lambda connaît Aurora et son secret maître."
+  }
+
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.aurora_depuis_lambda[0].from_port == 5432 && aws_vpc_security_group_ingress_rule.aurora_depuis_lambda[0].security_group_id == "sg-0000000000000aaaa"
+    error_message = "Aurora accepte la Lambda sur 5432."
+  }
+}
+
 run "configuration_partielle_refusee" {
   command = plan
 

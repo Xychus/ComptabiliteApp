@@ -198,3 +198,31 @@ variable "fenetre_recuperation_secrets_jours" {
   type        = number
   default     = 30
 }
+
+variable "mots_de_passe_postgres" {
+  description = <<-EOT
+    Mots de passe des rôles PostgreSQL sans authentification IAM (Debezium), un secret chacun (clé =
+    nom court) renouvelé par la Lambda : role = rôle PostgreSQL ; services = services ECS redéployés.
+  EOT
+  type = map(object({
+    role     = string
+    services = optional(list(string), [])
+  }))
+  default = {}
+
+  validation {
+    condition     = alltrue([for m in values(var.mots_de_passe_postgres) : can(regex("^[a-z_][a-z0-9_]{0,62}$", m.role))])
+    error_message = "Le rôle est un identifiant PostgreSQL simple (minuscules, chiffres, souligné)."
+  }
+}
+
+variable "aurora" {
+  description = "Aurora pour la rotation des mots de passe : point de terminaison rédacteur, base, secret maître géré par RDS, groupe de sécurité. null sans mot de passe à renouveler."
+  type = object({
+    hote              = string
+    base              = string
+    secret_maitre_arn = string
+    groupe_securite   = string
+  })
+  default = null
+}
