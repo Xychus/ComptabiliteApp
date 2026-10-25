@@ -104,7 +104,7 @@ resource "aws_vpc_security_group_egress_rule" "vers_aurora" {
 
 resource "aws_vpc_security_group_egress_rule" "vers_points_de_terminaison" {
   security_group_id            = aws_security_group.migrations.id
-  description                  = "HTTPS vers les points de terminaison d'interface (ECR, Secrets Manager, Logs)"
+  description                  = "HTTPS vers les points de terminaison VPC (ECR, Secrets Manager, Logs)"
   ip_protocol                  = "tcp"
   from_port                    = 443
   to_port                      = 443

@@ -25,7 +25,7 @@ locals {
 
 resource "aws_db_subnet_group" "donnees" {
   name        = var.prefixe
-  description = "Sous-réseaux « donnees » d'Aurora"
+  description = "Sous-reseaux donnees (Aurora)"
   subnet_ids  = var.sous_reseaux
 }
 
@@ -33,7 +33,7 @@ resource "aws_db_subnet_group" "donnees" {
 # Aucune règle de sortie : Aurora n'initie aucune connexion.
 resource "aws_security_group" "aurora" {
   name        = "${var.prefixe}-aurora"
-  description = "Aurora PostgreSQL : entrées ajoutées par chaque client"
+  description = "Aurora PostgreSQL : entrees ajoutees par chaque client"
   vpc_id      = var.vpc_id
 
   tags = {
