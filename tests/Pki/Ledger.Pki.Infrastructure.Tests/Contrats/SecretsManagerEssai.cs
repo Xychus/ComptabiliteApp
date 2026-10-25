@@ -32,13 +32,13 @@ internal sealed class SecretsManagerEssai(MagasinCertificatsMemoire memoire, int
     {
         var valeur = request.VersionId is { } version
             ? await memoire.LireVersionAsync(request.SecretId, version, cancellationToken)
-            : await memoire.LireParEtiquetteAsync(request.SecretId, request.VersionStage, cancellationToken);
+            : await memoire.LireParEtiquetteAsync(request.SecretId, request.VersionStage ?? "AWSCURRENT", cancellationToken);
         if (valeur is null)
         {
             throw new ResourceNotFoundException("Secrets Manager can't find the specified secret value.");
         }
 
-        var versionLue = request.VersionId ?? (await memoire.DecrireAsync(request.SecretId, cancellationToken)).VersionPortant(request.VersionStage);
+        var versionLue = request.VersionId ?? (await memoire.DecrireAsync(request.SecretId, cancellationToken)).VersionPortant(request.VersionStage ?? "AWSCURRENT");
         return new GetSecretValueResponse { SecretString = valeur, VersionId = versionLue };
     }
 

@@ -1,5 +1,3 @@
-using Ledger.Pki.Application.Emission;
-
 namespace Ledger.Pki.Application.Rotation;
 
 /// <summary>
@@ -13,5 +11,8 @@ public interface IActionApresRotation
 
     bool SApplique(DescriptionSecret description);
 
-    Task ExecuterAsync(DescriptionSecret description, ContenuSecretCertificat contenu, CancellationToken cancellationToken);
+    /// <param name="description">Secret renouvelé (étiquettes : cibles de l'action).</param>
+    /// <param name="valeur">Nouvelle valeur courante du secret (JSON propre à son type).</param>
+    /// <param name="cancellationToken">Annulation.</param>
+    Task ExecuterAsync(DescriptionSecret description, string valeur, CancellationToken cancellationToken);
 }

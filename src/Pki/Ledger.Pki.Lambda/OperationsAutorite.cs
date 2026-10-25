@@ -25,14 +25,17 @@ public sealed class OperationsAutorite(GestionnaireRotation rotation, Inventaire
         inventaire.ExecuterAsync(cancellationToken);
 }
 
-/// <summary>Mode cérémonie (aucune intermédiaire installée) : toute rotation échoue explicitement.</summary>
-public sealed class AutoriteNonInstallee : IOperationsAutorite
+/// <summary>
+/// Mode cérémonie (aucune intermédiaire installée) : les mots de passe PostgreSQL tournent ; un
+/// certificat n'a aucune étape enregistrée et sa rotation échoue explicitement ; l'inventaire échoue.
+/// </summary>
+public sealed class AutoriteNonInstallee(GestionnaireRotation rotation) : IOperationsAutorite
 {
     private const string Message =
-        "Aucune intermédiaire installée : terminez la cérémonie (runbook pki-ceremonie-annuelle) avant toute rotation.";
+        "Aucune intermédiaire installée : terminez la cérémonie (runbook pki-ceremonie-annuelle) avant toute rotation de certificat.";
 
     public Task<Result<string>> TournerAsync(DemandeRotation demande, CancellationToken cancellationToken) =>
-        throw new EchecPkiException(Message);
+        rotation.TraiterAsync(demande, cancellationToken);
 
     public Task<IReadOnlyList<MesureEcheance>> InventorierAsync(CancellationToken cancellationToken) =>
         throw new EchecPkiException(Message);

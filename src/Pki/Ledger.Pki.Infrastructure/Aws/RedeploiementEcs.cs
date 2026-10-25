@@ -1,7 +1,6 @@
 using Amazon.ECS;
 using Amazon.ECS.Model;
 using Task = System.Threading.Tasks.Task;
-using Ledger.Pki.Application.Emission;
 using Ledger.Pki.Application.Rotation;
 
 namespace Ledger.Pki.Infrastructure.Aws;
@@ -26,7 +25,7 @@ public sealed class RedeploiementEcs(IAmazonECS ecs) : IActionApresRotation
         return description.Etiquettes.ContainsKey(EtiquetteGrappe) && Services(description).Length > 0;
     }
 
-    public async Task ExecuterAsync(DescriptionSecret description, ContenuSecretCertificat contenu, CancellationToken cancellationToken)
+    public async Task ExecuterAsync(DescriptionSecret description, string valeur, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(description);
 

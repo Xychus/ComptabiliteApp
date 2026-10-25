@@ -14,9 +14,29 @@ public enum EtapeRotation
 /// <summary>Demande de rotation reçue de Secrets Manager : secret, jeton (identifiant de la nouvelle version), étape.</summary>
 public sealed record DemandeRotation(string Secret, string Version, EtapeRotation Etape);
 
-/// <summary>Une étape du protocole ; une implémentation par étape (ajout, pas de <c>switch</c>).</summary>
+/// <summary>Types de secrets renouvelés par la Lambda, lus dans l'étiquette <see cref="Etiquette"/> du secret.</summary>
+public static class TypesSecret
+{
+    public const string Etiquette = "rotation:type";
+
+    /// <summary>Certificat final de la PKI interne (valeur par défaut, sans étiquette).</summary>
+    public const string Certificat = "certificat";
+
+    /// <summary>Mot de passe d'un rôle PostgreSQL qui ne peut pas utiliser l'authentification IAM (Debezium).</summary>
+    public const string MotDePassePostgres = "mot-de-passe-postgres";
+
+    public static string De(DescriptionSecret description)
+    {
+        ArgumentNullException.ThrowIfNull(description);
+        return description.Etiquettes.GetValueOrDefault(Etiquette, Certificat);
+    }
+}
+
+/// <summary>Une étape du protocole pour un type de secret ; une implémentation par étape et par type (ajout, pas de <c>switch</c>).</summary>
 public interface IEtapeRotation
 {
+    string TypeSecret { get; }
+
     EtapeRotation Etape { get; }
 
     Task<Result<string>> ExecuterAsync(DemandeRotation demande, DescriptionSecret description, CancellationToken cancellationToken);
@@ -28,7 +48,7 @@ public interface IEtapeRotation
 /// </summary>
 public sealed class GestionnaireRotation(IMagasinCertificats magasin, IEnumerable<IEtapeRotation> etapes)
 {
-    private readonly Dictionary<EtapeRotation, IEtapeRotation> _etapes = etapes.ToDictionary(e => e.Etape);
+    private readonly Dictionary<(string Type, EtapeRotation Etape), IEtapeRotation> _etapes = etapes.ToDictionary(e => (e.TypeSecret, e.Etape));
 
     public async Task<Result<string>> TraiterAsync(DemandeRotation demande, CancellationToken cancellationToken)
     {
@@ -56,9 +76,10 @@ public sealed class GestionnaireRotation(IMagasinCertificats magasin, IEnumerabl
             return Echec("pki.rotation.etat", $"La version {demande.Version} n'est pas en attente.");
         }
 
-        return _etapes.TryGetValue(demande.Etape, out var etape)
+        var type = TypesSecret.De(description);
+        return _etapes.TryGetValue((type, demande.Etape), out var etape)
             ? await etape.ExecuterAsync(demande, description, cancellationToken).ConfigureAwait(false)
-            : Echec("pki.rotation.etape", $"Étape non prise en charge : {demande.Etape}.");
+            : Echec("pki.rotation.etape", $"Étape non prise en charge : {demande.Etape} pour le type « {type} ».");
     }
 
     private static Result<string> Echec(string code, string message) => Result.Failure<string>(new DomainError(code, message));

@@ -23,10 +23,11 @@ public sealed class ReimportationAcm(IAmazonCertificateManager acm) : IActionApr
         return description.Etiquettes.ContainsKey(Etiquette);
     }
 
-    public async Task ExecuterAsync(DescriptionSecret description, ContenuSecretCertificat contenu, CancellationToken cancellationToken)
+    public async Task ExecuterAsync(DescriptionSecret description, string valeur, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(description);
-        ArgumentNullException.ThrowIfNull(contenu);
+        var contenu = ContenuSecretCertificat.DepuisJson(valeur)
+            ?? throw new InvalidOperationException($"Réimport ACM impossible : {description.Identifiant} ne contient pas de certificat.");
 
         // Chaîne attendue par ACM : intermédiaire puis racine, sans le certificat final.
         var intermediaire = contenu.Chaine[contenu.Certificat.Length..].Trim();

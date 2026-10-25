@@ -163,8 +163,12 @@ public sealed class CompositionPkiTests
     {
         using var signataire = new SignataireMemoire();
         signataire.CreerCle("arn:cle");
+        var magasin = new MagasinCertificatsMemoire();
+        magasin.Creer("s", new Dictionary<string, string>(StringComparer.Ordinal) { [ProfilCertificat.EtiquetteNomCommun] = "debezium", [ProfilCertificat.EtiquetteUsage] = "client" });
+        magasin.AmorcerRotation("s", "v");
         using var fournisseur = new ServiceCollection()
             .AddSingleton<ISignataireAutorite>(signataire)
+            .AddSingleton<IMagasinCertificats>(magasin)
             .AjouterPki(new OptionsPki(null, null, null))
             .BuildServiceProvider();
         var gestionnaire = fournisseur.GetRequiredService<GestionnaireEvenementsPki>();
@@ -178,6 +182,30 @@ public sealed class CompositionPkiTests
             new EvenementPki { Operation = "inventaire" }, TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<EchecPkiException>(() => gestionnaire.TraiterAsync(
             new EvenementPki { SecretId = "s", ClientRequestToken = "v", Step = "createSecret" }, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void OptionsPki_aurora_lue_dans_l_environnement()
+    {
+        var variables = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [OptionsPki.VariableHotePostgres] = "aurora",
+            [OptionsPki.VariableBasePostgres] = "ledger",
+            [OptionsPki.VariableSecretMaitre] = "arn:secret",
+        };
+
+        var options = OptionsPki.DepuisEnvironnement(variables.GetValueOrDefault);
+
+        Assert.Equal(new PostgresPki("aurora", "ledger", "arn:secret", "/app/rds-ca-global.pem"), options.Postgres);
+        Assert.Throws<InvalidOperationException>(() => OptionsPki.DepuisEnvironnement(v => v == OptionsPki.VariableHotePostgres ? "aurora" : null));
+    }
+
+    [Fact]
+    public void AjouterPki_avec_aurora_enregistre_les_etapes_des_mots_de_passe()
+    {
+        var services = new ServiceCollection().AjouterPki(new OptionsPki(null, null, null) { Postgres = new PostgresPki("h", "b", "s", "c") });
+
+        Assert.Equal(4, services.Count(s => s.ServiceType == typeof(IEtapeRotation)));
     }
 
     [Fact]

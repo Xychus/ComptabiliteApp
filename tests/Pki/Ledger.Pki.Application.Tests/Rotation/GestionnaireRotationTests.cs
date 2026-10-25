@@ -184,14 +184,24 @@ public sealed class GestionnaireRotationTests : IDisposable
     }
 
     [Fact]
-    public async Task TerminerSecret_contenu_illisible_est_refuse()
+    public async Task TerminerSecret_version_vide_est_refusee()
     {
         _magasin.AmorcerRotation(Secret, Version1);
-        await _magasin.EcrireEnAttenteAsync(Secret, Version1, "pas du json", TestContext.Current.CancellationToken);
 
         var resultat = await Gestionnaire().TraiterAsync(new DemandeRotation(Secret, Version1, EtapeRotation.TerminerSecret), TestContext.Current.CancellationToken);
 
         Assert.Equal("pki.rotation.contenu", resultat.Error.Code);
+    }
+
+    [Fact]
+    public async Task Type_de_secret_sans_etapes_est_refuse()
+    {
+        _magasin.Creer("autre-type", new Dictionary<string, string>(StringComparer.Ordinal) { [TypesSecret.Etiquette] = "inconnu" });
+        _magasin.AmorcerRotation("autre-type", Version1);
+
+        var resultat = await Gestionnaire().TraiterAsync(new DemandeRotation("autre-type", Version1, EtapeRotation.CreerSecret), TestContext.Current.CancellationToken);
+
+        Assert.Equal("pki.rotation.etape", resultat.Error.Code);
     }
 
     [Fact]
@@ -215,7 +225,7 @@ public sealed class GestionnaireRotationTests : IDisposable
 
         public bool SApplique(DescriptionSecret description) => Applicable;
 
-        public Task ExecuterAsync(DescriptionSecret description, ContenuSecretCertificat contenu, CancellationToken cancellationToken)
+        public Task ExecuterAsync(DescriptionSecret description, string valeur, CancellationToken cancellationToken)
         {
             Executions++;
             return Task.CompletedTask;

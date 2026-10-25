@@ -106,7 +106,7 @@ public sealed class AdaptateursAwsTests : IDisposable
 
         Assert.True(action.SApplique(description));
         Assert.False(action.SApplique(Description()));
-        await action.ExecuterAsync(description, contenu, Jeton);
+        await action.ExecuterAsync(description, contenu.VersJson(), Jeton);
 
         Assert.Equal("arn:aws:acm:ca-central-1:111111111111:certificate/abc", acm.CertificateArn);
         Assert.Equal(contenu.Certificat, acm.Certificat);
@@ -117,6 +117,15 @@ public sealed class AdaptateursAwsTests : IDisposable
     }
 
     [Fact]
+    public async Task ReimportationAcm_valeur_qui_n_est_pas_un_certificat_echoue()
+    {
+        using var acm = new AcmEssai();
+        var description = Description((ReimportationAcm.Etiquette, "arn:aws:acm:ca-central-1:111111111111:certificate/abc"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new ReimportationAcm(acm).ExecuterAsync(description, "{}", Jeton));
+    }
+
+    [Fact]
     public async Task RedeploiementEcs_force_un_deploiement_par_service()
     {
         using var ecs = new EcsEssai();
@@ -124,7 +133,7 @@ public sealed class AdaptateursAwsTests : IDisposable
         var description = Description((RedeploiementEcs.EtiquetteGrappe, "ledger-dev"), (RedeploiementEcs.EtiquetteServices, "debezium  projections-worker"));
 
         Assert.True(action.SApplique(description));
-        await action.ExecuterAsync(description, new ContenuSecretCertificat("c", "c", "k", "r", AutoriteEssai.Maintenant), Jeton);
+        await action.ExecuterAsync(description, "{}", Jeton);
 
         Assert.Equal([("ledger-dev", "debezium", true), ("ledger-dev", "projections-worker", true)], ecs.Requetes.Select(r => (r.Cluster, r.Service, r.ForceNewDeployment ?? false)));
     }

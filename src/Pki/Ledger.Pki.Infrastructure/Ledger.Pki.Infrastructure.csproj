@@ -8,6 +8,7 @@
     <PackageReference Include="AWSSDK.SecretsManager" />
     <PackageReference Include="Confluent.Kafka" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <ItemGroup>

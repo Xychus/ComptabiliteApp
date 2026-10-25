@@ -7,10 +7,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 // Lambda de la PKI interne (ADR 0010) : rotation des certificats finaux, inventaire des échéances,
 // demande de signature de la cérémonie annuelle. Client autonome de l'API d'exécution Lambda.
-using var fournisseur = new ServiceCollection()
-    .AjouterPkiAws()
-    .AjouterPki(OptionsPki.DepuisEnvironnement(Environment.GetEnvironmentVariable))
-    .BuildServiceProvider();
+var options = OptionsPki.DepuisEnvironnement(Environment.GetEnvironmentVariable);
+var services = new ServiceCollection().AjouterPkiAws();
+if (options.Postgres is { } aurora)
+{
+    services.AjouterAdministrationPostgresAws(
+        new Ledger.Pki.Infrastructure.Postgres.OptionsAdministrationPostgres(aurora.Hote, aurora.Base, aurora.CertificatRacine),
+        aurora.SecretMaitre);
+}
+
+using var fournisseur = services.AjouterPki(options).BuildServiceProvider();
 var gestionnaire = fournisseur.GetRequiredService<GestionnaireEvenementsPki>();
 
 async Task<ReponsePki> TraiterAsync(EvenementPki evenement, ILambdaContext contexte)
