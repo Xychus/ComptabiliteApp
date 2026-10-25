@@ -163,9 +163,31 @@ locals {
     },
   ]
 
+  # Secret du mot de passe maître d'Aurora géré par RDS (ADR 0025) : à la création de la grappe,
+  # RDS crée lui-même une autorisation (grant) sur la clé « secrets », avec l'identité de
+  # l'appelant et kms:ViaService = rds (constaté dans CloudTrail le 2026-10-25). Seule l'autorisation
+  # passe par RDS ; le chiffrement du secret reste réservé à Secrets Manager.
+  declarations_secrets = [
+    {
+      Sid       = "AutorisationsRdsSecretMaitre"
+      Effect    = "Allow"
+      Principal = { AWS = local.racine }
+      Action    = ["kms:CreateGrant"]
+      Resource  = "*"
+      Condition = {
+        StringEquals = {
+          "kms:CallerAccount" = var.compte_aws
+          "kms:ViaService"    = "rds.${var.region}.amazonaws.com"
+        }
+        Bool = { "kms:GrantIsForAWSResource" = "true" }
+      }
+    },
+  ]
+
   declarations_propres = {
-    logs = local.declarations_logs
-    ecs  = local.declarations_ecs
+    logs    = local.declarations_logs
+    ecs     = local.declarations_ecs
+    secrets = local.declarations_secrets
   }
 
   politiques = {

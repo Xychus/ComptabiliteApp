@@ -29,7 +29,12 @@ données d'un domaine, hors du service qui les détient.
      CloudWatch Logs (principal `logs.<région>.amazonaws.com`, contexte
      `aws:logs:arn` = un groupe du compte) et le stockage éphémère Fargate (principal
      `fargate.amazonaws.com`, contexte `aws:ecs:clusterAccount` = le compte et
-     `aws:ecs:clusterName` = `ledger-*`, autorisations limitées à `Decrypt`).
+     `aws:ecs:clusterName` = `ledger-*`, autorisations limitées à `Decrypt`) ;
+   - **exception de la clé `secrets`** (ajoutée en phase 7, ADR 0025) : `kms:CreateGrant`
+     seulement, à travers RDS (`kms:ViaService = rds`), pour une ressource AWS. À la création
+     d'une grappe dont RDS gère le mot de passe maître, RDS crée lui-même une autorisation sur la
+     clé du secret, avec l'identité de l'appelant (constaté dans CloudTrail le 2026-10-25) ; le
+     chiffrement du secret reste réservé à Secrets Manager.
 3. **Jamais de clé `aws/*`**, vérifié trois fois :
    - les modules n'acceptent qu'un ARN de clé (`arn:aws:kms:…:key/…`) : un alias est refusé
      par la validation des variables (tests `terraform test`) ;
