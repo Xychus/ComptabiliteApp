@@ -33,9 +33,13 @@ internal sealed class SecretsManagerEssai(MagasinCertificatsMemoire memoire, int
         var valeur = request.VersionId is { } version
             ? await memoire.LireVersionAsync(request.SecretId, version, cancellationToken)
             : await memoire.LireParEtiquetteAsync(request.SecretId, request.VersionStage, cancellationToken);
-        return valeur is null
-            ? throw new ResourceNotFoundException("Secrets Manager can't find the specified secret value.")
-            : new GetSecretValueResponse { SecretString = valeur };
+        if (valeur is null)
+        {
+            throw new ResourceNotFoundException("Secrets Manager can't find the specified secret value.");
+        }
+
+        var versionLue = request.VersionId ?? (await memoire.DecrireAsync(request.SecretId, cancellationToken)).VersionPortant(request.VersionStage);
+        return new GetSecretValueResponse { SecretString = valeur, VersionId = versionLue };
     }
 
     public override async Task<PutSecretValueResponse> PutSecretValueAsync(PutSecretValueRequest request, CancellationToken cancellationToken = default)

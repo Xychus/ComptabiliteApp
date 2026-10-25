@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Application\Ledger.Pki.Application.csproj" />
     <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Infrastructure\Ledger.Pki.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Lambda\Ledger.Pki.Lambda.csproj" />
+    <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Sentinelle\Ledger.Pki.Sentinelle.csproj" />
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Application\Ledger.Projections.Application.csproj" />
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Infrastructure\Ledger.Projections.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\src\Projections\Ledger.Projections.Worker\Ledger.Projections.Worker.csproj" />

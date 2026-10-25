@@ -6,6 +6,7 @@
     <PackageReference Include="AWSSDK.ECS" />
     <PackageReference Include="AWSSDK.KeyManagementService" />
     <PackageReference Include="AWSSDK.SecretsManager" />
+    <PackageReference Include="Confluent.Kafka" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 

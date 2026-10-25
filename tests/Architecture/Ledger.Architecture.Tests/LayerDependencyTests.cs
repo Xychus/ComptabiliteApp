@@ -44,7 +44,7 @@ public sealed class LayerDependencyTests
 
     [Fact]
     public void La_composition_ne_touche_pas_directement_la_base_ni_Kafka_ni_AWS() =>
-        Types().That().ResideInAssembly(CommandApi, ProjectionsWorker, QueryApi)
+        Types().That().ResideInAssembly(CommandApi, ProjectionsWorker, QueryApi, PkiSentinelle)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(DataAccessNamespaces)
             .Check(Model);
 

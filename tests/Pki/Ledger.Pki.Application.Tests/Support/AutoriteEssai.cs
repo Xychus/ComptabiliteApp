@@ -23,10 +23,15 @@ public sealed class AutoriteEssai : IDisposable
     public static readonly DateTimeOffset Maintenant = new(2026, 10, 25, 12, 0, 0, TimeSpan.Zero);
 
     private readonly ECDsa _cleRacine;
+    private readonly DateTimeOffset _maintenant;
 
-    public AutoriteEssai(TimeSpan? validiteIntermediaire = null, string nomRacine = "CN=Racine essai")
+    /// <param name="validiteIntermediaire">Validité de l'intermédiaire (1 an par défaut).</param>
+    /// <param name="nomRacine">Nom distinctif de la racine (deux PKI distinctes dans un même test).</param>
+    /// <param name="maintenant">Instant de référence ; l'heure réelle pour un test contre un vrai broker.</param>
+    public AutoriteEssai(TimeSpan? validiteIntermediaire = null, string nomRacine = "CN=Racine essai", DateTimeOffset? maintenant = null)
     {
-        Horloge = new HorlogeEssai(Maintenant);
+        _maintenant = maintenant ?? Maintenant;
+        Horloge = new HorlogeEssai(_maintenant);
         Signataire = new SignataireMemoire();
 
         _cleRacine = ECDsa.Create(ECCurve.NamedCurves.nistP384);
@@ -34,10 +39,10 @@ public sealed class AutoriteEssai : IDisposable
         demandeRacine.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, true, 1, true));
         demandeRacine.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
         demandeRacine.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(demandeRacine.PublicKey, false));
-        Racine = demandeRacine.CreateSelfSigned(Maintenant.AddDays(-1), Maintenant.AddYears(10));
+        Racine = demandeRacine.CreateSelfSigned(_maintenant.AddDays(-1), _maintenant.AddYears(10));
 
         var cleIntermediaire = Signataire.CreerCle(Cle);
-        Intermediaire = CreerIntermediaire(cleIntermediaire, Maintenant + (validiteIntermediaire ?? TimeSpan.FromDays(365)), pathLength: 0);
+        Intermediaire = CreerIntermediaire(cleIntermediaire, _maintenant + (validiteIntermediaire ?? TimeSpan.FromDays(365)), pathLength: 0);
 
         var autorite = AutoriteIntermediaire.Charger(Intermediaire.ExportCertificatePem(), Racine.ExportCertificatePem(), Cle);
         Autorite = autorite.IsSuccess ? autorite.Value : throw new InvalidOperationException(autorite.Error.Message);
@@ -65,7 +70,7 @@ public sealed class AutoriteEssai : IDisposable
         demande.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
         demande.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(demande.PublicKey, false));
         demande.CertificateExtensions.Add(X509AuthorityKeyIdentifierExtension.CreateFromCertificate(Racine, true, false));
-        return demande.Create(Racine, Maintenant.AddDays(-1), fin, RandomNumberGenerator.GetBytes(8));
+        return demande.Create(Racine, _maintenant.AddDays(-1), fin, RandomNumberGenerator.GetBytes(8));
     }
 
     public void Dispose()

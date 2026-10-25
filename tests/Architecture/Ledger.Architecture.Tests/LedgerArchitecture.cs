@@ -24,6 +24,7 @@ internal static class LedgerArchitecture
     public static readonly Assembly PkiApplication = typeof(Ledger.Pki.Application.AssemblyMarker).Assembly;
     public static readonly Assembly PkiInfrastructure = typeof(Ledger.Pki.Infrastructure.AssemblyMarker).Assembly;
     public static readonly Assembly PkiLambda = typeof(Ledger.Pki.Lambda.AssemblyMarker).Assembly;
+    public static readonly Assembly PkiSentinelle = typeof(Ledger.Pki.Sentinelle.AssemblyMarker).Assembly;
 
     public static readonly ArchUnitNET.Domain.Architecture Model = new ArchLoader()
         .LoadAssemblies(
@@ -44,7 +45,8 @@ internal static class LedgerArchitecture
             Integrity,
             PkiApplication,
             PkiInfrastructure,
-            PkiLambda)
+            PkiLambda,
+            PkiSentinelle)
         .Build();
 
     /// <summary>Espaces de noms des technologies d'infrastructure, interdits hors de <c>*.Infrastructure</c> et de la composition.</summary>
@@ -55,7 +57,7 @@ internal static class LedgerArchitecture
     public const string DataAccessNamespaces = @"^(Npgsql|Confluent\.Kafka|Amazon|Microsoft\.EntityFrameworkCore|Dapper|DbUp)(\..*)?$";
 
     /// <summary>Couches de composition et de transport : rien ne doit en dépendre.</summary>
-    public const string CompositionNamespaces = @"^Ledger\.[A-Za-z]+\.(Api|Worker|Lambda)(\..*)?$";
+    public const string CompositionNamespaces = @"^Ledger\.[A-Za-z]+\.(Api|Worker|Lambda|Sentinelle)(\..*)?$";
 
     /// <summary>
     /// Comme <see cref="DataAccessNamespaces"/>, sauf le client de l'API d'exécution Lambda
