@@ -39,3 +39,7 @@ environnement en commentaire de la PR (rôle `gha-plan`, OIDC).
 Après fusion dans `main`, `infra-apply.yml` applique l'environnement dev (rôle `gha-apply`,
 environnement GitHub `dev`) : `plan -out` puis `apply` de ce plan exact, un apply à la fois.
 Il se lance aussi à la demande (`workflow_dispatch`). Prod : phase 10.
+
+Dev est jetable (ADR 0027) : `infra-destroy.yml` le détruit, à la demande et après saisie de
+« ledger-dev ». Le workflow s'arrête si le bucket d'archive contient un objet (verrou COMPLIANCE
+de 6 ans). On recrée dev en lançant `infra-apply.yml`. Aurora y tourne en Serverless v2.

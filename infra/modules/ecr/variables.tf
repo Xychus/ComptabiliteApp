@@ -28,3 +28,9 @@ variable "jours_conservation_sans_etiquette" {
   type        = number
   default     = 7
 }
+
+variable "suppression_forcee" {
+  description = "Supprimer un dépôt même s'il contient des images. true : environnement jetable seulement (dev)."
+  type        = bool
+  default     = false
+}

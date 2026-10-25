@@ -20,7 +20,12 @@ locals {
     "log_min_duration_statement" = { valeur = "1000", application = "immediate" }
   }
 
-  instances = { for i in range(var.nombre_instances) : tostring(i + 1) => i }
+  serverless = var.capacite_serverless != null
+
+  # Ordre de promotion : rédacteur au rang 0. En Serverless v2, les lecteurs commencent au rang 2,
+  # le seul où ils se mettent en pause indépendamment du rédacteur (documentation AWS) ; un lecteur
+  # reste la cible de basculement quel que soit son rang.
+  instances = { for i in range(var.nombre_instances) : tostring(i + 1) => (i == 0 ? 0 : (local.serverless ? i + 1 : i)) }
 }
 
 resource "aws_db_subnet_group" "donnees" {
@@ -97,9 +102,21 @@ resource "aws_rds_cluster" "grappe" {
   preferred_maintenance_window = "sun:07:30-sun:08:30" # UTC, après la sauvegarde
   copy_tags_to_snapshot        = true
 
-  deletion_protection       = true
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "${var.prefixe}-final"
+  # Désactivables pour un environnement jetable seulement (dev, ADR 0027).
+  deletion_protection       = var.protection_suppression
+  skip_final_snapshot       = !var.instantane_final
+  final_snapshot_identifier = var.instantane_final ? "${var.prefixe}-final" : null
+
+  # Serverless v2 (instances db.serverless) : avec la réplication logique active, le rédacteur ne
+  # se met jamais en pause et reste à sa plus petite capacité active (ADR 0027).
+  dynamic "serverlessv2_scaling_configuration" {
+    for_each = local.serverless ? [var.capacite_serverless] : []
+    content {
+      min_capacity             = serverlessv2_scaling_configuration.value.minimum_acu
+      max_capacity             = serverlessv2_scaling_configuration.value.maximum_acu
+      seconds_until_auto_pause = serverlessv2_scaling_configuration.value.minimum_acu == 0 ? serverlessv2_scaling_configuration.value.secondes_avant_pause : null
+    }
+  }
 
   allow_major_version_upgrade = false
   apply_immediately           = false
@@ -116,7 +133,7 @@ resource "aws_rds_cluster_instance" "instance" {
   cluster_identifier = aws_rds_cluster.grappe.id
   engine             = aws_rds_cluster.grappe.engine
   engine_version     = aws_rds_cluster.grappe.engine_version
-  instance_class     = var.classe_instance
+  instance_class     = local.serverless ? "db.serverless" : var.classe_instance
 
   db_subnet_group_name = aws_db_subnet_group.donnees.name
   publicly_accessible  = false
@@ -173,7 +190,9 @@ locals {
 
   alarmes_instances = merge([
     for instance, _ in local.instances : {
+      # FreeLocalStorage n'est pas publiée pour les instances Serverless v2.
       for nom, a in local.alarmes_par_instance : "${instance}-${nom}" => merge(a, { instance = instance, nom = nom })
+      if !(local.serverless && nom == "stockage-local")
     }
   ]...)
 }

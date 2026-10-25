@@ -32,10 +32,18 @@ variable "administrateurs_kms" {
   default     = []
 }
 
-variable "classe_instance_aurora" {
-  description = "Classe des instances Aurora."
-  type        = string
-  default     = "db.r7g.large"
+variable "capacite_aurora" {
+  description = "Capacité Aurora Serverless v2 (ACU). Le rédacteur ne se met jamais en pause (réplication logique) ; le lecteur, si (ADR 0027)."
+  type = object({
+    minimum_acu          = number
+    maximum_acu          = number
+    secondes_avant_pause = optional(number, 300)
+  })
+  default = {
+    minimum_acu          = 0
+    maximum_acu          = 4
+    secondes_avant_pause = 900
+  }
 }
 
 variable "version_image_migrations" {

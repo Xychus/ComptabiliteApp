@@ -117,6 +117,74 @@ run "alarmes" {
   }
 }
 
+run "provisionne_et_protege_par_defaut" {
+  command = apply
+
+  assert {
+    condition     = alltrue([for i in aws_rds_cluster_instance.instance : i.instance_class == "db.r7g.large"]) && length(aws_rds_cluster.grappe.serverlessv2_scaling_configuration) == 0
+    error_message = "Sans capacité Serverless, les instances sont provisionnées."
+  }
+
+  assert {
+    condition     = aws_rds_cluster.grappe.final_snapshot_identifier == "ledger-dev-final"
+    error_message = "L'instantané final est nommé d'après la grappe."
+  }
+}
+
+run "serverless_jetable" {
+  command = apply
+
+  variables {
+    capacite_serverless    = { minimum_acu = 0, maximum_acu = 4, secondes_avant_pause = 900 }
+    protection_suppression = false
+    instantane_final       = false
+  }
+
+  assert {
+    condition     = alltrue([for i in aws_rds_cluster_instance.instance : i.instance_class == "db.serverless"])
+    error_message = "Les instances doivent être de classe db.serverless."
+  }
+
+  assert {
+    condition = (aws_rds_cluster.grappe.serverlessv2_scaling_configuration[0].min_capacity == 0
+      && aws_rds_cluster.grappe.serverlessv2_scaling_configuration[0].max_capacity == 4
+    && aws_rds_cluster.grappe.serverlessv2_scaling_configuration[0].seconds_until_auto_pause == 900)
+    error_message = "Capacité de 0 à 4 ACU, pause après 15 minutes."
+  }
+
+  # Le lecteur au rang 2 se met en pause indépendamment du rédacteur.
+  assert {
+    condition     = aws_rds_cluster_instance.instance["1"].promotion_tier == 0 && aws_rds_cluster_instance.instance["2"].promotion_tier == 2
+    error_message = "Rédacteur au rang 0, lecteur au rang 2."
+  }
+
+  assert {
+    condition     = !aws_rds_cluster.grappe.deletion_protection && aws_rds_cluster.grappe.skip_final_snapshot
+    error_message = "Environnement jetable : ni protection contre la suppression, ni instantané final."
+  }
+
+  # Le chiffrement et le TLS ne changent pas en Serverless.
+  assert {
+    condition     = aws_rds_cluster.grappe.kms_key_id == var.cle_kms_aurora_arn && alltrue([for i in aws_rds_cluster_instance.instance : i.performance_insights_kms_key_id == var.cle_kms_aurora_arn])
+    error_message = "Le chiffrement par la CMK « aurora » s'applique aussi en Serverless."
+  }
+
+  assert {
+    condition     = length(aws_cloudwatch_metric_alarm.instance) == 6 && !contains([for a in aws_cloudwatch_metric_alarm.instance : a.metric_name], "FreeLocalStorage")
+    error_message = "FreeLocalStorage n'existe pas en Serverless : trois alarmes par instance."
+  }
+}
+
+run "refuse_une_capacite_invalide" {
+  command = plan
+
+  variables {
+    capacite_serverless = { minimum_acu = 0, maximum_acu = 4, secondes_avant_pause = 60 }
+  }
+
+  expect_failures = [var.capacite_serverless]
+}
+
 run "refuse_une_cle_geree_par_aws" {
   command = plan
 
