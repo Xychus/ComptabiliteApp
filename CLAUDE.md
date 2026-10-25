@@ -108,7 +108,7 @@ terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/en
 tflint --init --config "$PWD/infra/.tflint.hcl"
 tflint --recursive --chdir infra --config "$PWD/infra/.tflint.hcl"   # sans --config : règles par défaut seulement
 checkov -d infra                       # depuis la racine : .checkov.yaml charge les vérifications maison
-terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem reseau, ecr, bootstrap
+terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem chaque module et bootstrap
 ```
 
 ## Sécurité (non négociable)
@@ -119,6 +119,11 @@ terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra
 - TLS partout : `rds.force_ssl=1` + Npgsql `SSL Mode=VerifyFull` ; Kafka en **mTLS** (écouteurs
   SSL seulement, ACL par identité de certificat) ; ALB/API Gateway TLS 1.2+ ; service à service en
   TLS (HTTPS par Kestrel) ; services AWS via VPC endpoints.
+- **TLS 1.3 privilégié lorsque disponible** : version minimale à TLS 1.3 quand le serveur et tous
+  ses clients la prennent en charge, sinon TLS 1.2 au minimum avec 1.3 négocié en priorité
+  (politiques de sécurité ALB / API Gateway incluant TLS 1.3, Kestrel, Kafka
+  `ssl.enabled.protocols`, `ssl_min_protocol_version` d'Aurora). Tout plancher inférieur à
+  TLS 1.3 est justifié en commentaire à côté du paramètre. Jamais en dessous de TLS 1.2.
 - PKI interne (ADR 0010) : racine OpenSSL hors ligne détenue par l'organisation, CA intermédiaire
   dans Secrets Manager, certificats finaux de 7 jours. **Jamais d'AWS Private CA** (ni le TLS natif
   d'ECS Service Connect, qui l'exige).

@@ -22,3 +22,35 @@ output "depots_ecr" {
   description = "URL du dépôt ECR de chaque service."
   value       = module.ecr.urls
 }
+
+output "aurora" {
+  description = "Grappe Aurora : points de terminaison, port, base, secret maître (ARN seulement)."
+  value = {
+    identifiant       = module.aurora.identifiant_grappe
+    redacteur         = module.aurora.point_de_terminaison_redacteur
+    lecteur           = module.aurora.point_de_terminaison_lecteur
+    port              = module.aurora.port
+    base              = module.aurora.nom_base
+    secret_maitre_arn = module.aurora.secret_maitre_arn
+  }
+}
+
+output "bucket_archive" {
+  description = "Nom du bucket d'archive (Object Lock COMPLIANCE)."
+  value       = module.archive.nom_bucket
+}
+
+output "grappe_ecs" {
+  description = "Nom de la grappe ECS."
+  value       = module.ecs.nom_grappe
+}
+
+output "migrations" {
+  description = "Lancement de la tâche de migrations (run-task) : famille et configuration réseau."
+  value = {
+    grappe          = module.ecs.nom_grappe
+    famille         = module.migrations.famille
+    sous_reseaux    = module.migrations.configuration_reseau.sous_reseaux
+    groupe_securite = module.migrations.configuration_reseau.groupe_securite
+  }
+}

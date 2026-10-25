@@ -31,3 +31,18 @@ variable "administrateurs_kms" {
   type        = list(string)
   default     = []
 }
+
+variable "classe_instance_aurora" {
+  description = "Classe des instances Aurora."
+  type        = string
+  default     = "db.r7g.large"
+}
+
+variable "version_image_migrations" {
+  description = <<-EOT
+    Étiquette SemVer exacte de l'image des migrations. Fournie par le déploiement (deploy.yml,
+    phase 10) ; d'ici là, aucune image n'est publiée et la tâche n'est pas lancée.
+  EOT
+  type        = string
+  default     = "0.1.0"
+}

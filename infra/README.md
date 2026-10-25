@@ -11,6 +11,10 @@ appliqué à la main par un administrateur.
 | `modules/kms` | Une CMK par domaine de données, politique au moindre privilège (ADR 0022) |
 | `modules/reseau` | VPC privé sur 3 zones, points de terminaison VPC, journaux de flux (ADR 0023) |
 | `modules/ecr` | Un dépôt par service, étiquettes immuables, CMK, analyse à la poussée |
+| `modules/aurora` | Aurora PostgreSQL 18 : TLS exigé, réplication logique, secret maître géré par RDS, sauvegardes, alarmes (ADR 0025) |
+| `modules/archive` | Archive d'intégrité : S3 Object Lock COMPLIANCE 6 ans, CMK `s3-archive` (ADR 0026) |
+| `modules/ecs` | Grappe ECS (phase 7 : Fargate seulement), stockage éphémère chiffré par la CMK `ecs` |
+| `modules/migrations` | Tâche Fargate ponctuelle des migrations : secrets ECS, rôle d'exécution, réseau fermé (ADR 0025) |
 | `envs/{dev,prod}` | Composition des modules ; un compte AWS par environnement |
 | `checkov/verifications` | Vérifications Checkov maison : CMK explicite, jamais de clé `aws/*` |
 
@@ -22,7 +26,7 @@ est refusé par la validation des variables.
 ```bash
 terraform fmt -check -recursive infra
 terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/envs/dev validate
-terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem reseau, ecr, bootstrap
+terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem pour chaque module et bootstrap
 tflint --init --config "$PWD/infra/.tflint.hcl"
 tflint --recursive --chdir infra --config "$PWD/infra/.tflint.hcl"
 checkov -d infra                     # depuis la racine du dépôt (.checkov.yaml)
@@ -31,3 +35,7 @@ checkov -d infra                     # depuis la racine du dépôt (.checkov.yam
 Les tests `terraform test` utilisent un fournisseur simulé (`mock_provider`) : aucun appel AWS.
 Le workflow `infra-ci.yml` exécute tout cela, puis publie le `terraform plan` de chaque
 environnement en commentaire de la PR (rôle `gha-plan`, OIDC).
+
+Après fusion dans `main`, `infra-apply.yml` applique l'environnement dev (rôle `gha-apply`,
+environnement GitHub `dev`) : `plan -out` puis `apply` de ce plan exact, un apply à la fois.
+Il se lance aussi à la demande (`workflow_dispatch`). Prod : phase 10.

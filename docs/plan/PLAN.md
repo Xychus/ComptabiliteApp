@@ -74,6 +74,8 @@ personnes travaillent sur le projet.
 | 0022 | Une CMK par domaine, usage cryptographique uniquement via le service (`kms:ViaService`), administration nommée ; jamais `aws/*` (validation des modules + Checkov maison) | La politique par défaut délègue tout à IAM | 6 |
 | 0023 | VPC privé sans passerelle Internet ni NAT, deux niveaux sur 3 zones, points de terminaison VPC | Aucune sortie Internet sans besoin avéré (Keycloak : à revoir en phase 9) | 6 |
 | 0024 | Kafka autogéré : image officielle en KRaft, 3 nœuds sur ECS (EC2 + EBS chiffré CMK `kafka`), mTLS + ACL par identité, Debezium en conteneur ECS ; remplace MSK et MSK Connect | Indépendance du transport vis-à-vis d'AWS ; même image et même connecteur qu'en local | 6 (décision), 8 |
+| 0025 | Aurora PostgreSQL 18.6 : TLS 1.3 exigé, réplication logique, mot de passe maître géré et renouvelé par RDS (7 jours), migrations en tâche Fargate (`VerifyFull`, secrets ECS), alarmes de slot | P4 ; aucune rotation à maintenir ; aucun secret en clair | 7 |
+| 0026 | Archive S3 Object Lock **COMPLIANCE 6 ans**, SSE-KMS par la seule CMK `s3-archive`, refus du non-TLS et de toute autre clé, lecture refusée à `gha-plan` | Immuabilité opposable (même à l'utilisateur racine) | 7 |
 
 ### Points à valider par un humain avant la phase concernée
 
@@ -84,9 +86,10 @@ personnes travaillent sur le projet.
   Link cible directement un ALB dans la région, sinon NLB devant l'ALB interne.
 - **P3 (avant phase 9)** — Runtime Lambda `dotnet10` disponible dans la région, sinon Native AOT
   sur `provided.al2023`.
-- **P4 (avant phase 7)** — Version Aurora PostgreSQL : dernière version majeure supportée au
-  moment de l'implémentation, avec réplication logique ; vérifier le comportement des slots de
-  réplication logique au basculement (*failover*) pour cette version.
+- **P4 — Version Aurora : résolu le 2026-10-25** (ADR 0025) : Aurora PostgreSQL **18.6** (majeure
+  18 publiée le 2026-06-11), réplication logique par `rds.logical_replication`. La documentation
+  AWS ne dit pas si un slot logique survit au basculement : **à constater au point d'arrêt de la
+  phase 8** (basculement forcé avec Debezium actif), consigné en runbook.
 - **P5 (avant phase 1)** — Plan comptable, granularité des périodes (mensuelle), périodes de
   déclaration TPS/TVQ, règles d'arrondi (ADR 0008) : à fournir par le comptable.
 - **P6 (avant phase 6)** — Région AWS (`ca-central-1` par défaut), identifiants des comptes AWS
@@ -370,29 +373,34 @@ environnements GitHub `dev` et `prod` (approbation requise pour `prod`).
 sont en phase 8 (ADR 0024), après la PKI.
 
 ### Tâches
-- [ ] **En premier** — Workflow `infra-apply.yml` (apply en dev, rôle `gha-apply`) : déclenché
+- [x] **En premier** — Workflow `infra-apply.yml` (apply en dev, rôle `gha-apply`) : déclenché
       par un push sur `main` touchant `infra/` et à la demande (`workflow_dispatch`) ; job dans
       l'environnement GitHub `dev` (jeton `environment:dev`, seul sujet accepté par `gha-apply`,
       ADR 0021) ; `init` (mêmes paramètres de backend qu'`infra-ci.yml`) → `plan -out` → `apply`
       de ce plan exact ; un seul apply à la fois (`concurrency` sans annulation) ; dev seulement
       (prod : phase 10). Premier apply = fondations de la phase 6 (57 ressources), à faire avant
       les modules ci-dessous. Fusionné seul ou en tête de la PR de la phase 7.
-- [ ] Module `aurora` : cluster Aurora PostgreSQL (version selon P4), `storage_encrypted` + CMK,
+- [x] Module `aurora` : cluster Aurora PostgreSQL (version selon P4), `storage_encrypted` + CMK,
       groupe de paramètres (`rds.force_ssl = 1`, `rds.logical_replication = 1`), sous-réseaux privés,
       mot de passe maître géré dans Secrets Manager (CMK), sauvegardes + PITR, protection contre
       la suppression, Performance Insights chiffré CMK, journaux exportés chiffrés CMK
-- [ ] Tâche ECS ponctuelle de migrations (`Ledger.Migrations`) exécutée par le pipeline avant déploiement
-- [ ] Module `archive` : bucket S3 Object Lock en mode **COMPLIANCE, 6 ans**, SSE-KMS CMK,
+- [x] Tâche ECS ponctuelle de migrations (`Ledger.Migrations`) exécutée par le pipeline avant déploiement
+      — définition de tâche, rôle, réseau et grappe ECS Fargate (module `ecs` minimal) ; **lancement
+      par le pipeline reporté en phase 10** (aucune image publiée avant `deploy.yml`)
+- [x] Module `archive` : bucket S3 Object Lock en mode **COMPLIANCE, 6 ans**, SSE-KMS CMK,
       `bucket_key_enabled`, versionnement, politique refusant tout transport non TLS
       (`aws:SecureTransport = false`), tout objet non chiffré par la bonne CMK, et
       `s3:GetObject` au rôle `gha-plan` (ADR 0021)
-- [ ] Alarmes CloudWatch : stockage Aurora, connexions, retard de réplication du slot logique
+- [x] Alarmes CloudWatch : stockage Aurora, connexions, retard de réplication du slot logique
+      (sans action : sujet SNS en phase 11)
 
 ### Critères d'acceptation
 - `terraform plan` en dev ne contient aucun chiffrement par clé gérée par AWS.
-- Une connexion PostgreSQL sans TLS est refusée (test de fumée après apply).
+- Une connexion PostgreSQL sans TLS est refusée (test de fumée après apply). — **Reporté en
+  phase 10** avec l'exécution des migrations (aucune tâche lançable avant la publication des images).
 - La réplication logique est active (`wal_level = logical`) et la publication `ledger_pub`
-  existe après les migrations.
+  existe après les migrations. — **Reporté en phase 10**, même raison ; le paramètre est vérifié
+  en phase 7 par `terraform test`.
 
 ### Prompt de lancement
 ```
@@ -401,7 +409,8 @@ Commence par le workflow infra-apply.yml (apply en dev). Vérifie ensuite le poi
 N'exécute aucune commande qui modifie AWS.
 ```
 
-**Point d'arrêt** : apply en dev par le pipeline ; test de fumée Aurora (TLS exigé, migrations).
+**Point d'arrêt** : apply en dev par le pipeline (fondations, puis données). Le test de fumée
+Aurora (TLS exigé, migrations) est fait en phase 10, au premier lancement de la tâche de migrations.
 
 ---
 
@@ -414,7 +423,7 @@ service à service par la PKI interne (ADR 0010), observabilité.
 - [ ] Module `pki` (ADR 0010, **sans AWS Private CA**) : secret de la CA intermédiaire (CMK
       `secrets`), Lambda d'émission et de rotation des certificats finaux (7 jours), certificat
       racine publié ; runbook de la cérémonie annuelle avec la racine hors ligne
-- [ ] Module `ecs` : grappe avec Fargate (stockage éphémère chiffré CMK `ecs`, condition resserrée
+- [ ] Module `ecs` (créé minimal en phase 7 : grappe Fargate, CMK `ecs`) : grappe avec Fargate (stockage éphémère chiffré CMK `ecs`, condition resserrée
       sur le nom exact de la grappe) et groupe de capacité EC2 pour Kafka (volumes chiffrés,
       rôle lié au service d'Auto Scaling autorisé sur la clé `kafka`), Container Insights,
       Service Connect pour la **découverte seulement** (pas de TLS natif : Private CA exigée)
@@ -432,7 +441,7 @@ service à service par la PKI interne (ADR 0010), observabilité.
 - [ ] Services : `command`, `projections`, `query` — task definitions (image par tag SemVer exact,
       secrets via Secrets Manager, rôle de tâche au moindre privilège, FS en lecture seule, non
       root) ; HTTPS par Kestrel avec un certificat de la PKI interne
-- [ ] Load balancer interne (ALB ou NLB selon P2), TLS 1.2+, certificat de la PKI **importé dans
+- [ ] Load balancer interne (ALB ou NLB selon P2), TLS 1.3 privilégié (politique incluant TLS 1.3, 1.2 au minimum), certificat de la PKI **importé dans
       ACM** et réimporté à chaque rotation
 - [ ] Mise à l'échelle automatique ; déploiement avec disjoncteur et retour arrière automatique
 - [ ] Tâche planifiée de purge de l'outbox (`ledger_maintenance`, phase 5)
@@ -507,8 +516,11 @@ Vérifie P2 et P3 d'abord. Teste l'autorizer en isolation avant d'écrire le mod
   - [ ] build de l'image **une seule fois**, tag = version SemVer + métadonnées `+sha.<commit>` dans les labels
   - [ ] scan Trivy (échec sur vulnérabilité critique), SBOM (Syft), signature cosign
   - [ ] push ECR (authentification OIDC)
-  - [ ] `dev` : `terraform apply` (réutilise le job d'`infra-apply.yml`, phase 7) → migrations →
+  - [ ] `dev` : `terraform apply` (réutilise le job d'`infra-apply.yml`, phase 7) → migrations
+        (`run-task` de la définition de tâche de la phase 7, attente du code de sortie) →
         déploiement ECS → tests de fumée
+  - [ ] Premier lancement des migrations en dev : critères reportés de la phase 7 (connexion
+        sans TLS refusée, `wal_level = logical`, publication `ledger_pub`)
   - [ ] `prod` : approbation manuelle (environnement protégé) → même artefact → mêmes étapes →
         retour arrière automatique sur alarme
 - [ ] Détection des changements incompatibles sur PR : `oasdiff` sur `openapi.json` et `query-openapi.json`, vérification
@@ -585,3 +597,4 @@ Commence par Ledger.Integrity et son test d'altération, puis le scellement et l
 | 2026-10-21 | 5 (images) | Règle ajoutée à `CLAUDE.md` (décision du responsable du projet) : images officielles de l'éditeur uniquement, dernière version stable, tag flottant sur le correctif seulement (ex. `3.7` ; PostgreSQL : version majeure, son second chiffre étant le correctif), variante Alpine si elle existe, sauf .NET qui reste en « chiseled ». Appliquée partout (compose, Dockerfiles, constantes Testcontainers) : `postgres:18-alpine` (PostgreSQL 18, à la place de 17.6), `apache/kafka:4.3.2` (à la place de `confluentinc/cp-kafka:7.9.2` ; tag exact faute de tag flottant publié ; image Alpine), `quay.io/debezium/connect:3.7` (3.7.0.Final vérifiée dans l'image), `quay.io/keycloak/keycloak:26.8`, `mcr.microsoft.com/dotnet/sdk:10.0`, `aspnet` / `runtime:10.0-noble-chiseled`. Compose : volume PostgreSQL monté sur `/var/lib/postgresql` (disposition de la 18), outils Kafka sous `/opt/kafka/bin`. Vérifié : chaîne compose (démo et panne de Kafka) ; 746 tests passent deux fois de suite ; seuils de couverture respectés. | Règle consignée dans `CLAUDE.md` ; ADR 0020 mis à jour (versions, conséquence des tags flottants : un correctif arrive sans commit, vérifié par le test de bout en bout du CI). | (1) **P4 : vérifier la disponibilité de PostgreSQL 18 sur Aurora** (version majeure et réplication logique) avant la phase 7 ; sinon, ADR et retour à la dernière majeure proposée. (2) Avec des tags flottants, deux exécutions peuvent tester des correctifs différents : la version exacte se lit dans les journaux du CI. (3) La règle s'applique aussi aux images des phases suivantes (Lambda, CI). |
 | 2026-10-21 | 6 | Socle Terraform (rien n'est appliqué : aucune commande AWS exécutée). `infra/bootstrap` (par compte, appliqué à la main) : bucket `ledger-tfstate-<compte>-<région>` (versionné, SSE-KMS par `alias/ledger-tfstate`, accès public bloqué, TLS obligatoire, accès réservé aux administrateurs déclarés, aux deux rôles du pipeline et à l'utilisateur racine), fournisseur OIDC GitHub, `role/bootstrap/gha-plan` (`ReadOnlyAccess` + fichiers `*.tflock` seulement ; sujet `pull_request`), `role/bootstrap/gha-apply` (`PowerUserAccess` + IAM limité au chemin `/ledger/` sous la frontière `policy/bootstrap/ledger-frontiere-charges`, refus explicites sur l'état et sa clé ; sujet `environment:<env>`), procédure en deux temps (état local puis migration) dans `infra/bootstrap/README.md`. Backends partiels `use_lockfile = true` + `kms_key_id`, sans DynamoDB. Modules `kms` (9 CMK, rotation, administration nommée, usage via `kms:ViaService` ; Logs et Fargate par principal de service avec contexte), `reseau` (VPC /16, sous-réseaux `applications` / `donnees` en /20 sur 3 zones, ni passerelle Internet ni NAT, 8 points de terminaison d'interface + passerelle S3 restreinte, groupe par défaut vide, journaux de flux chiffrés conservés 1 an), `ecr` (`ledger/{command-api,query-api,projections-worker,migrations}`, `IMMUTABLE`, CMK, analyse à la poussée, expiration des seules images sans étiquette). `envs/dev` et `envs/prod` composent les modules (CIDR 10.20/16 et 10.30/16, zones figées) ; verrous des fournisseurs (AWS 6.70.0) pour 4 plateformes. Workflow `infra-ci.yml` : fmt, validate (`-lockfile=readonly`), `terraform test`, TFLint 0.64 (preset `all` + règles AWS 0.49), Checkov 3.3.30, puis plan dev et prod (OIDC `gha-plan`, job **sans** environnement GitHub) publié et mis à jour en commentaire ; plan ignoré tant que `AWS_ACCOUNT_ID_<ENV>` est absente. Critères vérifiés en local : Checkov 0 échec (208 réussis, 12 exceptions justifiées dans le code) ; aucune clé `aws/*` : validations des modules (ARN `key/…` exigé, testées) + vérifications maison `CKV_LEDGER_1` (aucune mention de `alias/aws/`) et `CKV_LEDGER_2` (CMK explicite sur 12 types chiffrables), dont l'échec a été constaté sur un exemple fautif (5 fautes sur 5) ; 15 tests `terraform test` (fournisseur simulé) ; TFLint propre ; actionlint propre. | [ADR 0011](../adr/0011-etat-terraform-verrou-s3-natif.md) (un bucket par compte, noms reconstruits depuis le numéro de compte : GitHub ne stocke que `AWS_REGION`, `AWS_ACCOUNT_ID_DEV`, `AWS_ACCOUNT_ID_PROD`, en variables), [ADR 0021](../adr/0021-identite-du-pipeline-oidc.md) (pas d'`AdministratorAccess` ; frontière de permissions), [ADR 0022](../adr/0022-cmk-par-domaine.md) (politique des CMK), [ADR 0023](../adr/0023-reseau-prive-sans-sortie-internet.md) (pas de NAT). **Écarts au plan** : module `network` nommé `reseau` ; `.checkov.yaml` à la racine (pour que `checkov -d infra` charge les vérifications maison) ; TFLint exige `--config` (commandes de `CLAUDE.md` mises à jour). | (1) **Point d'arrêt** : amorçage **appliqué dans le compte dev** le 2026-10-22 (état migré dans le bucket) ; **compte prod : amorçage reporté à la toute fin des phases** (décision du responsable du projet, 2026-10-23). D'ici là, `AWS_ACCOUNT_ID_PROD` reste absente et le plan prod s'ignore ; les phases 7 à 11 sont vérifiées sur dev seulement, et tout ce qui vise prod (apply et approbation de `prod` en phase 10, reprise après sinistre et intégrité en phase 11) reste écrit mais non exercé jusqu'à cet amorçage. Le responsable du projet crée aussi les variables de dépôt et les environnements GitHub `dev` / `prod` (relecteurs obligatoires pour `prod`, branche `main`). (2) Critère « plan en commentaire de PR » : premier essai sur la PR #19 (2026-10-23) : `AssumeRoleWithWebIdentity` refusé, le dépôt émettant des sujets OIDC immuables (`repo:Xychus@153566096/ComptabiliteApp@1422798619:…`) ; amorçage corrigé (`id_organisation_github`, `id_depot_github`, ADR 0021) et réappliqué dans le compte dev ; **critère constaté le 2026-10-23** : commentaire « Terraform plan — dev ✅ », `Plan: 57 to add, 0 to change, 0 to destroy` (kms 18, reseau 31, ecr 8), plan prod ignoré faute de variable. Corrigé aussi : le plan prod retombait sur le compte dev quand `AWS_ACCOUNT_ID_PROD` est absente (`cond && a || b`), il lit maintenant `vars[matrix.variable_compte]`. (2b) **Rien n'est appliqué en dev avant la phase 7** : le plan prévoyait l'apply en phase 10 alors que les points d'arrêt des phases 7 à 9 exigent « apply en dev par le pipeline ». Décision du responsable du projet (2026-10-23) : workflow `infra-apply.yml` (dev seulement) = première tâche de la phase 7 ; la phase 10 le réutilise et y ajoute prod. Plan mis à jour. (3) Ne pas rendre `infra-ci` obligatoire dans le ruleset tant qu'il est filtré par chemins (un check requis jamais lancé bloque la PR). (4) Phase 7 : la politique du bucket d'archive doit refuser `s3:GetObject` à `gha-plan` (`ReadOnlyAccess`) ; ajouter MSK Connect au catalogue de la clé `msk` et le point de terminaison `kafka` si nécessaire ; groupes de sécurité Aurora / MSK. (5) Phase 8 : resserrer la condition Fargate de la clé `ecs` sur le nom exact de la grappe ; ajouter les rôles sous `/ledger/` avec la frontière ; élargir la frontière si besoin (PR sur l'amorçage). (6) Phase 9 : accès de l'autorizer aux JWKS Keycloak sans NAT (ADR 0023) ; dépôt ECR `authorizer` si la Lambda est en image (P3). (7) P6 toujours ouvert : numéros de comptes et URL du realm Keycloak (variables, non renseignées). |
 | 2026-10-23 | 6 (révision) | **MSK remplacé par Kafka autogéré** et **pas d'AWS Private CA**, décisions du responsable du projet avant la phase 7. Kafka : image officielle `apache/kafka` en KRaft, 3 nœuds sur ECS (EC2 + EBS persistant chiffré), mTLS + ACL par identité, Debezium en conteneur ECS avec le connecteur invariant de la phase 5 ; placé en **phase 8** (après la PKI). PKI : racine OpenSSL hors ligne détenue par l'organisation, intermédiaire dans Secrets Manager, certificats de 7 jours émis par une Lambda ; Service Connect pour la découverte seulement, HTTPS par Kestrel, certificat du load balancer importé dans ACM. Code de la phase 6 (non appliqué) : clé `msk` renommée `kafka` (via EC2, volumes EBS), droits MSK retirés de la frontière de permissions ; tests et Checkov repassés. Plan révisé : phases 7 (Aurora, migrations, archive) et 8 (PKI, ECS, Kafka, Debezium, alarmes Kafka), P1 résolu, runbooks de la phase 11. `CLAUDE.md`, README et ADR 0020–0023 mis à jour. | [ADR 0010](../adr/0010-pki-interne-openssl.md) (PKI interne, P1 résolu), [ADR 0024](../adr/0024-kafka-autogere.md) (remplace l'ADR 0009, jamais rédigé). | (1) **Réappliquer l'amorçage en dev** (frontière sans droits MSK) — non urgent : la frontière actuelle est seulement plus large. (2) Phase 8 : rôle lié au service d'Auto Scaling à autoriser sur la clé `kafka` ; ACL et sujets internes de Connect ; partitions de `ledger.events`. (3) La chaîne locale reste en `PLAINTEXT` jusqu'à la phase 8. (4) Indépendance partielle : Aurora, ECS, KMS, Secrets Manager et API Gateway restent des services AWS. |
+| 2026-10-25 | 7 | Données (rien n'est appliqué par Claude Code : aucune commande AWS exécutée). **`infra-apply.yml`** (premier commit, fusionnable seul) : push sur `main` touchant `infra/envs`, `infra/modules`, `infra/.terraform-version` ou le workflow, et `workflow_dispatch` ; job dans l'environnement GitHub `dev` (rôle `gha-apply`) ; init identique à `infra-ci.yml` ; `plan -detailed-exitcode -out` puis `apply` de ce plan exact (sauté si aucun changement), résumé du plan dans le récapitulatif du job ; `concurrency` sans annulation ; échec explicite si `AWS_ACCOUNT_ID_DEV` est absente. **P4 résolu** : Aurora PostgreSQL 18.6. Modules : `aurora` (grappe + 2 instances `db.r7g.large`, sous-réseaux `donnees`, groupe de sécurité sans règle — chaque client ajoute la sienne —, paramètres `rds.force_ssl=1`, `ssl_min_protocol_version=TLSv1.3`, `rds.logical_replication=1`, journalisation connexions/DDL/requêtes lentes ; stockage et Performance Insights CMK `aurora`, secret maître géré par RDS (CMK `secrets`, rotation 7 jours), journaux PostgreSQL dans un groupe créé d'avance (CMK `logs`), PITR 35 jours, protection contre la suppression, instantané final, AC `rds-ca-rsa2048-g1`, mineures par PR ; alarmes `VolumeBytesUsed`, `FreeLocalStorage`, `DatabaseConnections`, `OldestReplicationSlotLag`, `ReplicationSlotDiskUsage`), `archive` (Object Lock COMPLIANCE 6 ans, SSE-KMS CMK `s3-archive` + clé de bucket, refus non-TLS / autre chiffrement / autre clé / `aws:kms` sans clé, lecture refusée à `gha-plan`), `ecs` (grappe Fargate minimale, stockage éphémère CMK `ecs`, Container Insights), `migrations` (définition de tâche Fargate, image `ledger/migrations:<SemVer>`, utilisateur et mot de passe en secrets ECS depuis le secret maître, lecture seule, non root, sans rôle de tâche ; rôle d'exécution `/ledger/` sous la frontière ; sorties 5432 vers Aurora et 443 vers les points de terminaison et S3). `Ledger.Migrations` : `ChaineDeConnexion` compose la chaîne en `VerifyFull` depuis des variables séparées (la chaîne complète reste prioritaire pour le local) ; certificats racines RDS intégrés à l'image (`ADD --checksum`). `CKV_LEDGER_2` étendue au secret maître (`master_user_secret_kms_key_id`) et à Performance Insights, échec constaté sur un exemple fautif (2 fautes sur 2). Vérifié en local : 35 tests `terraform test` (8 configurations), validate dev et prod (`-lockfile=readonly`), TFLint propre, Checkov 310 réussis / 0 échec / 22 exceptions justifiées, build `-warnaserror`, tests .NET. | [ADR 0025](../adr/0025-aurora-postgresql-18.md), [ADR 0026](../adr/0026-archive-s3-object-lock.md). Décisions du responsable du projet (2026-10-25) : **TLS 1.3 privilégié lorsque disponible** (règle ajoutée à `CLAUDE.md`, appliquée à Aurora : `ssl_min_protocol_version = TLSv1.3`) ; grappe ECS minimale dès la phase 7 ; **exécution des migrations reportée en phase 10** (aucune image publiée avant `deploy.yml`), avec les critères « connexion sans TLS refusée » et « `ledger_pub` après migrations ». | (1) **Point d'arrêt** : fusionner `infra-apply.yml` → premier apply en dev (fondations, 57 ressources), puis la suite de la PR → apply des données. (2) **Archive en COMPLIANCE aussi en dev** : tout objet déposé y reste 6 ans (n'y mettre que des exports d'essai minuscules). (3) Coût dev : deux `db.r7g.large` en continu (`classe_instance_aurora` surchargeable). (4) P4 : survie du slot logique au basculement à constater en phase 8 (runbook). (5) Phase 8 : connexion des rôles applicatifs (`ledger_app`, `ledger_projection`, `ledger_query`, `debezium`, `ledger_maintenance` restent NOLOGIN) — authentification IAM (activée sur la grappe) ou mots de passe renouvelés tous les 7 jours, à décider ; certificat racine RDS pour Debezium. (6) Phase 10 : `version_image_migrations` (défaut `0.1.0`, aucune image publiée) fournie par `deploy.yml` ; composant release-please de `Ledger.Migrations` toujours à décider (journal phase 0, point 3). (7) Phase 11 : sujet SNS chiffré pour les actions des alarmes (aucune action aujourd'hui), CloudTrail événements de données, AWS Backup / copie interrégionale. (8) La branche `chore/dependabot-titres` (commit 16d51ee) n'est pas encore fusionnée dans `main`. |
