@@ -76,7 +76,7 @@ resource "aws_route_table_association" "sous_reseau" {
 
 resource "aws_security_group" "points_de_terminaison" {
   name        = "${var.prefixe}-points-de-terminaison"
-  description = "HTTPS depuis le VPC vers les points de terminaison d'interface"
+  description = "HTTPS depuis le VPC vers les points de terminaison VPC (interface)"
   vpc_id      = aws_vpc.vpc.id
 
   tags = {
