@@ -1,8 +1,8 @@
 using Ledger.Command.Application.EventStore;
 using Ledger.Command.Infrastructure.InMemory;
 using Ledger.Command.Infrastructure.Postgres;
+using Ledger.Postgres.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Ledger.Command.Infrastructure;
 
@@ -14,13 +14,13 @@ public static class EventStoreServiceCollectionExtensions
 {
     /// <summary>
     /// Event store PostgreSQL. La chaîne de connexion désigne le rôle <c>ledger_app</c>
-    /// (<c>SSL Mode=VerifyFull</c> en AWS) ; elle vient de Secrets Manager, jamais du code, et
-    /// n'est lue qu'à la première résolution de la source de données.
+    /// (<c>SSL Mode=VerifyFull</c> en AWS, authentification IAM sans mot de passe, ADR 0029) ;
+    /// elle n'est lue qu'à la première résolution de la source de données.
     /// </summary>
     public static IServiceCollection AddPostgresEventStore(this IServiceCollection services, Func<IServiceProvider, string> connectionString)
     {
         ArgumentNullException.ThrowIfNull(connectionString);
-        services.AddSingleton(sp => NpgsqlDataSource.Create(connectionString(sp)));
+        services.AddSingleton(sp => SourceDonneesPostgres.Creer(sp, connectionString(sp)));
         services.AddSingleton<NpgsqlEventStore>();
         services.AddSingleton<IEventReader>(sp => sp.GetRequiredService<NpgsqlEventStore>());
         services.AddSingleton<IPeriodEventReader>(sp => sp.GetRequiredService<NpgsqlEventStore>());

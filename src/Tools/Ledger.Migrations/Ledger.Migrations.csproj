@@ -9,6 +9,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Postgres\Ledger.Postgres.Infrastructure\Ledger.Postgres.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Scripts numérotés, exécutés une seule fois chacun, dans l'ordre de leur nom. -->
     <EmbeddedResource Include="Scripts\*.sql" />
   </ItemGroup>

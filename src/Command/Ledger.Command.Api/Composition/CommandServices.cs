@@ -7,6 +7,7 @@ using Ledger.Command.Application.Periods;
 using Ledger.Command.Domain.Entries;
 using Ledger.Command.Infrastructure;
 using Ledger.Command.Infrastructure.Postgres;
+using Ledger.Postgres.Infrastructure;
 using Ledger.SharedKernel;
 
 namespace Ledger.Command.Api.Composition;
@@ -53,6 +54,7 @@ public static class CommandServices
 
         // Lue à la résolution, pas à l'enregistrement : la génération du contrat OpenAPI au build
         // compose l'application sans chaîne de connexion. Son absence fait échouer le démarrage.
+        services.AjouterAuthentificationPostgres(configuration.GetSection(OptionsPostgres.Section).Get<OptionsPostgres>() ?? new OptionsPostgres());
         services.AddPostgresEventStore(sp => sp.GetRequiredService<IConfiguration>().GetConnectionString(ConnectionStringName)
             ?? throw new InvalidOperationException($"Chaîne de connexion « {ConnectionStringName} » absente."));
         if (!DocumentGeneration.IsRunning)

@@ -25,8 +25,20 @@ public sealed class KafkaSourceOptions
     [Required]
     public string ConsumerGroup { get; set; } = "ledger-projections";
 
-    /// <summary>TLS par défaut (MSK) ; <c>Plaintext</c> seulement en local et en test.</summary>
+    /// <summary>TLS par défaut (Kafka autogéré en mTLS, ADR 0024) ; <c>Plaintext</c> seulement en local et en test.</summary>
     public SecurityProtocol SecurityProtocol { get; set; } = SecurityProtocol.Ssl;
+
+    /// <summary>
+    /// Certificat client de la PKI interne suivi de l'intermédiaire (PEM), injecté par <c>secrets</c>
+    /// de la définition de tâche (champ <c>chaine</c> du secret, ADR 0010). Identité ACL : son nom commun.
+    /// </summary>
+    public string? CertificatClientPem { get; set; }
+
+    /// <summary>Clé privée PKCS#8 du certificat client (champ <c>cle</c> du secret).</summary>
+    public string? CleClientPem { get; set; }
+
+    /// <summary>Certificat racine de la PKI interne (champ <c>racine</c>) : seule ancre de confiance.</summary>
+    public string? RacinePem { get; set; }
 }
 
 /// <summary>
@@ -47,6 +59,20 @@ public sealed class KafkaEventSource : IEventSource, IDisposable
         ArgumentNullException.ThrowIfNull(checkpoints);
         _options = options;
         _checkpoints = checkpoints;
+        _consumer = new ConsumerBuilder<string?, string?>(ConfigurationConsommateur(options))
+            .SetPartitionsAssignedHandler((_, partitions) => ResumeFromCheckpoints(partitions))
+            .Build();
+        _consumer.Subscribe(options.Topic);
+    }
+
+    /// <summary>
+    /// Configuration du consommateur. En <c>Ssl</c> avec un certificat client : mTLS, vérification
+    /// du nom du broker et confiance limitée à la racine de la PKI interne (ADR 0010, 0024).
+    /// </summary>
+    public static ConsumerConfig ConfigurationConsommateur(KafkaSourceOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
         var config = new ConsumerConfig
         {
             BootstrapServers = options.BootstrapServers,
@@ -57,10 +83,21 @@ public sealed class KafkaEventSource : IEventSource, IDisposable
             EnableAutoOffsetStore = false,
             IsolationLevel = IsolationLevel.ReadCommitted,
         };
-        _consumer = new ConsumerBuilder<string?, string?>(config)
-            .SetPartitionsAssignedHandler((_, partitions) => ResumeFromCheckpoints(partitions))
-            .Build();
-        _consumer.Subscribe(options.Topic);
+
+        if (options.SecurityProtocol == SecurityProtocol.Ssl && options.CertificatClientPem is not null)
+        {
+            if (string.IsNullOrWhiteSpace(options.CleClientPem) || string.IsNullOrWhiteSpace(options.RacinePem))
+            {
+                throw new InvalidOperationException("Certificat client Kafka sans clé ou sans racine : CleClientPem et RacinePem sont exigés.");
+            }
+
+            config.SslCertificatePem = options.CertificatClientPem;
+            config.SslKeyPem = options.CleClientPem;
+            config.SslCaPem = options.RacinePem;
+            config.SslEndpointIdentificationAlgorithm = SslEndpointIdentificationAlgorithm.Https;
+        }
+
+        return config;
     }
 
     public SourceMessage Consume(CancellationToken cancellationToken)

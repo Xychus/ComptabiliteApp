@@ -1,3 +1,4 @@
+using Ledger.Postgres.Infrastructure;
 using Ledger.Projections.Application.Balances;
 using Ledger.Projections.Application.Chart;
 using Ledger.Projections.Application.Entries;
@@ -10,7 +11,6 @@ using Ledger.Projections.Infrastructure.InMemory;
 using Ledger.Projections.Infrastructure.Kafka;
 using Ledger.Projections.Infrastructure.Postgres;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Ledger.Projections.Infrastructure;
 
@@ -19,13 +19,13 @@ public static class ProjectionInfrastructureExtensions
 {
     /// <summary>
     /// Projections PostgreSQL. La chaîne de connexion désigne le rôle <c>ledger_projection</c>
-    /// (<c>SSL Mode=VerifyFull</c> en AWS) ; elle vient de Secrets Manager et n'est lue qu'à la
-    /// première résolution de la source de données.
+    /// (<c>SSL Mode=VerifyFull</c> en AWS, authentification IAM sans mot de passe, ADR 0029) ;
+    /// elle n'est lue qu'à la première résolution de la source de données.
     /// </summary>
     public static IServiceCollection AddPostgresProjectionStore(this IServiceCollection services, Func<IServiceProvider, string> connectionString)
     {
         ArgumentNullException.ThrowIfNull(connectionString);
-        services.AddSingleton(sp => NpgsqlDataSource.Create(connectionString(sp)));
+        services.AddSingleton(sp => SourceDonneesPostgres.Creer(sp, connectionString(sp)));
         services.AddSingleton<IJournalReader, NpgsqlJournalReader>();
         services.AddSingleton<IConsumerCheckpointReader, NpgsqlConsumerCheckpointReader>();
         services.AddScoped<NpgsqlProjectionSession>();

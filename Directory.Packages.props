@@ -34,11 +34,12 @@
     <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
   </ItemGroup>
 
-  <ItemGroup Label="AWS (PKI interne, ADR 0010)">
+  <ItemGroup Label="AWS (PKI interne ADR 0010, authentification IAM Aurora)">
     <PackageVersion Include="AWSSDK.CertificateManager" Version="4.0.102.12" />
     <PackageVersion Include="AWSSDK.CloudWatch" Version="4.0.107.1" />
     <PackageVersion Include="AWSSDK.ECS" Version="4.0.108.1" />
     <PackageVersion Include="AWSSDK.KeyManagementService" Version="4.0.100.20" />
+    <PackageVersion Include="AWSSDK.RDS" Version="4.0.107.1" />
     <PackageVersion Include="AWSSDK.SecretsManager" Version="4.0.100.21" />
     <PackageVersion Include="Amazon.Lambda.Core" Version="3.4.0" />
     <PackageVersion Include="Amazon.Lambda.RuntimeSupport" Version="2.3.0" />
