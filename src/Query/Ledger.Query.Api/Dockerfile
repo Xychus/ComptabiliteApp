@@ -38,7 +38,7 @@ WORKDIR /app
 COPY --from=build /app .
 # Certificats racines RDS publiés par AWS (TLS VerifyFull vers Aurora, même empreinte que l'image
 # des migrations) : la chaîne de connexion désigne Root Certificate=/app/rds-ca-global.pem.
-ADD --chmod=444 --checksum=sha256:90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b     https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-ca-global.pem
+ADD --chmod=444 --checksum=sha256:90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b \n    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/rds-ca-global.pem
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     DOTNET_EnableDiagnostics=0
 USER 1654
