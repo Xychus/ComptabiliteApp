@@ -108,7 +108,7 @@ terraform -chdir=infra/envs/dev init -backend=false && terraform -chdir=infra/en
 tflint --init --config "$PWD/infra/.tflint.hcl"
 tflint --recursive --chdir infra --config "$PWD/infra/.tflint.hcl"   # sans --config : règles par défaut seulement
 checkov -d infra                       # depuis la racine : .checkov.yaml charge les vérifications maison
-terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem reseau, ecr, bootstrap
+terraform -chdir=infra/modules/kms init -backend=false && terraform -chdir=infra/modules/kms test   # idem chaque module et bootstrap
 ```
 
 ## Sécurité (non négociable)

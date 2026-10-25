@@ -72,23 +72,30 @@ def _premiere(conf, attribut):
     return valeurs[0] if valeurs else None
 
 
-# Type de ressource → (chemin de l'attribut CMK, condition d'application facultative).
+# Type de ressource → [(chemin de l'attribut CMK, condition d'application facultative), …].
 ATTRIBUTS_CMK = {
-    "aws_cloudwatch_log_group": ("kms_key_id", None),
-    "aws_ebs_volume": ("kms_key_id", None),
-    "aws_ecr_repository": ("encryption_configuration.kms_key", None),
-    "aws_ecs_cluster": ("configuration.managed_storage_configuration.fargate_ephemeral_storage_kms_key_id", None),
-    "aws_lambda_function": ("kms_key_arn", None),
-    "aws_msk_cluster": ("encryption_info.encryption_at_rest_kms_key_arn", None),
-    "aws_rds_cluster": ("kms_key_id", None),
-    "aws_s3_bucket_server_side_encryption_configuration": (
-        "rule.apply_server_side_encryption_by_default.kms_master_key_id",
-        None,
-    ),
-    "aws_secretsmanager_secret": ("kms_key_id", None),
-    "aws_sns_topic": ("kms_master_key_id", None),
-    "aws_sqs_queue": ("kms_master_key_id", None),
-    "aws_ssm_parameter": ("key_id", lambda conf: _premiere(conf, "type") == "SecureString"),
+    "aws_cloudwatch_log_group": [("kms_key_id", None)],
+    "aws_ebs_volume": [("kms_key_id", None)],
+    "aws_ecr_repository": [("encryption_configuration.kms_key", None)],
+    "aws_ecs_cluster": [("configuration.managed_storage_configuration.fargate_ephemeral_storage_kms_key_id", None)],
+    "aws_lambda_function": [("kms_key_arn", None)],
+    "aws_msk_cluster": [("encryption_info.encryption_at_rest_kms_key_arn", None)],
+    "aws_rds_cluster": [
+        ("kms_key_id", None),
+        # Secret du mot de passe maître géré par RDS : sans clé, aws/secretsmanager.
+        ("master_user_secret_kms_key_id", lambda conf: _premiere(conf, "manage_master_user_password") is True),
+    ],
+    # Performance Insights : sans clé, aws/rds.
+    "aws_rds_cluster_instance": [
+        ("performance_insights_kms_key_id", lambda conf: _premiere(conf, "performance_insights_enabled") is True),
+    ],
+    "aws_s3_bucket_server_side_encryption_configuration": [
+        ("rule.apply_server_side_encryption_by_default.kms_master_key_id", None),
+    ],
+    "aws_secretsmanager_secret": [("kms_key_id", None)],
+    "aws_sns_topic": [("kms_master_key_id", None)],
+    "aws_sqs_queue": [("kms_master_key_id", None)],
+    "aws_ssm_parameter": [("key_id", lambda conf: _premiere(conf, "type") == "SecureString")],
 }
 
 
@@ -102,12 +109,14 @@ class CmkExplicite(BaseResourceCheck):
         )
 
     def scan_resource_conf(self, conf):
-        chemin, condition = ATTRIBUTS_CMK[self.entity_type]
-        if condition is not None and not condition(conf):
-            return CheckResult.PASSED
         if self.entity_type == "aws_ecr_repository" and _premiere(conf, "encryption_configuration.encryption_type") != "KMS":
             return CheckResult.FAILED
-        return CheckResult.PASSED if _valeurs(conf, chemin) else CheckResult.FAILED
+        for chemin, condition in ATTRIBUTS_CMK[self.entity_type]:
+            if condition is not None and not condition(conf):
+                continue
+            if not _valeurs(conf, chemin):
+                return CheckResult.FAILED
+        return CheckResult.PASSED
 
 
 check_ressource = CleGereeParAwsDansRessource()
