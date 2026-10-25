@@ -14,11 +14,23 @@ public sealed class ConfigurationSentinelle
 
     public int NombreNoeuds { get; set; } = 3;
 
+    /// <summary>Nom du nœud (dimension des mesures), ex. <c>kafka-1</c>.</summary>
+    public string Noeud { get; set; } = string.Empty;
+
+    /// <summary>Volume de données du broker, monté en lecture seule (espace disque libre).</summary>
+    public string DossierDonnees { get; set; } = "/donnees";
+
+    /// <summary>Groupes de consommateurs dont le retard est mesuré.</summary>
+    public IReadOnlyList<string> Groupes { get; set; } = ["ledger-projections"];
+
+    /// <summary>Intervalle de publication des mesures.</summary>
+    public TimeSpan IntervalleMesures { get; set; } = TimeSpan.FromMinutes(1);
+
     public void Valider()
     {
-        if (string.IsNullOrWhiteSpace(Secret) || string.IsNullOrWhiteSpace(Serveurs) || NombreNoeuds < 1)
+        if (string.IsNullOrWhiteSpace(Secret) || string.IsNullOrWhiteSpace(Serveurs) || string.IsNullOrWhiteSpace(Noeud) || NombreNoeuds < 1)
         {
-            throw new InvalidOperationException("Ledger:Sentinelle : Secret, Serveurs et NombreNoeuds sont obligatoires.");
+            throw new InvalidOperationException("Ledger:Sentinelle : Secret, Serveurs, Noeud et NombreNoeuds sont obligatoires.");
         }
     }
 }

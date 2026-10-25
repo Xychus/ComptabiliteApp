@@ -12,8 +12,14 @@ configuration.Valider();
 var options = builder.Configuration.GetSection(OptionsSentinelle.Section).Get<OptionsSentinelle>() ?? new OptionsSentinelle();
 
 builder.Services
-    .AjouterSentinelleAws(configuration.Secret, configuration.Dossier, configuration.Serveurs, configuration.NombreNoeuds)
+    .AjouterSentinelleAws(configuration.Secret, configuration.Dossier, configuration.Serveurs, configuration.NombreNoeuds, configuration.DossierDonnees, configuration.Groupes)
     .AddSingleton(options)
+    .AddSingleton(configuration)
+    .AddSingleton(sp => new SurveillanceGrappe(
+        sp.GetRequiredService<ISourceCertificatCourant>(),
+        sp.GetRequiredService<ICollecteMesuresGrappe>(),
+        sp.GetRequiredService<IPublicateurMesuresGrappe>(),
+        configuration.Noeud))
     .AddSingleton(TimeProvider.System)
     .AddSingleton<IClock, SystemClock>()
     .AddSingleton<Ledger.Pki.Application.Sentinelle.Sentinelle>();
@@ -28,5 +34,6 @@ if (args.Contains("installer"))
 }
 
 builder.Services.AddHostedService<ServiceSentinelle>();
+builder.Services.AddHostedService<ServiceMesures>();
 using var hote = builder.Build();
 await hote.RunAsync().ConfigureAwait(false);

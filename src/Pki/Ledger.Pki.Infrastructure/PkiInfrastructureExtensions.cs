@@ -47,13 +47,20 @@ public static class PkiInfrastructureExtensions
         return services;
     }
 
-    /// <summary>Adaptateurs de la sentinelle d'un broker : secret du nœud, fichiers PEM, santé de la grappe.</summary>
-    public static IServiceCollection AjouterSentinelleAws(this IServiceCollection services, string secret, string dossier, string serveurs, int nombreNoeuds)
+    /// <summary>
+    /// Adaptateurs de la sentinelle d'un broker : secret du nœud, fichiers PEM, santé et mesures de
+    /// la grappe (volume de données monté en lecture, groupes de consommateurs surveillés).
+    /// </summary>
+    public static IServiceCollection AjouterSentinelleAws(
+        this IServiceCollection services, string secret, string dossier, string serveurs, int nombreNoeuds, string dossierDonnees, IReadOnlyList<string> groupes)
     {
         services.AddSingleton<IAmazonSecretsManager>(_ => new AmazonSecretsManagerClient());
+        services.AddSingleton<IAmazonCloudWatch>(_ => new AmazonCloudWatchClient());
         services.AddSingleton<ISourceCertificatCourant>(sp => new SourceCertificatSecretsManager(sp.GetRequiredService<IAmazonSecretsManager>(), secret));
         services.AddSingleton<IEcrivainCertificats>(new EcrivainCertificatsFichiers(dossier));
         services.AddSingleton<ISanteGrappe>(new SanteGrappeKafka(serveurs, nombreNoeuds));
+        services.AddSingleton<ICollecteMesuresGrappe>(new CollecteMesuresKafka(serveurs, dossierDonnees, groupes));
+        services.AddSingleton<IPublicateurMesuresGrappe, PublicateurMesuresGrappeCloudWatch>();
         return services;
     }
 }

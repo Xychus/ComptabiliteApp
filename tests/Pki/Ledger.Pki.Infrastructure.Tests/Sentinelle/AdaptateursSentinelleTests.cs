@@ -111,11 +111,40 @@ public sealed class AdaptateursSentinelleTests : IDisposable
     [Fact]
     public void AjouterSentinelleAws_enregistre_les_ports()
     {
-        var services = new ServiceCollection().AjouterSentinelleAws("arn:secret", _dossier, "kafka-1:9093", 3);
+        var services = new ServiceCollection().AjouterSentinelleAws("arn:secret", _dossier, "kafka-1:9093", 3, _dossier, ["ledger-projections"]);
 
+        Assert.Contains(services, s => s.ServiceType == typeof(ICollecteMesuresGrappe));
+        Assert.Contains(services, s => s.ServiceType == typeof(IPublicateurMesuresGrappe));
         Assert.Contains(services, s => s.ServiceType == typeof(ISourceCertificatCourant));
         Assert.Contains(services, s => s.ServiceType == typeof(IEcrivainCertificats));
         Assert.Contains(services, s => s.ServiceType == typeof(ISanteGrappe));
+    }
+
+    [Fact]
+    public async Task CollecteMesuresKafka_grappe_injoignable_compte_zero_noeud_mais_mesure_le_disque()
+    {
+        var mesures = await new CollecteMesuresKafka("127.0.0.1:1", Path.GetTempPath(), ["ledger-projections"], TimeSpan.FromSeconds(1))
+            .CollecterAsync(new ContenuSecretCertificat("c", "c", "k", "r", AutoriteEssai.Maintenant), Jeton);
+
+        Assert.Equal(0, mesures.NoeudsPresents);
+        Assert.InRange(mesures.EspaceLibrePourcent, 0.01, 100);
+    }
+
+    [Fact]
+    public async Task PublicateurMesuresGrappeCloudWatch_publie_par_noeud_et_par_groupe()
+    {
+        using var cloudWatch = new CloudWatchEssai();
+
+        await new PublicateurMesuresGrappeCloudWatch(cloudWatch).PublierAsync(
+            "kafka-2",
+            new MesuresGrappe(3, 1, 42.5, new Dictionary<string, long> { ["ledger-projections"] = 17 }),
+            Jeton);
+
+        var requete = Assert.Single(cloudWatch.Requetes);
+        Assert.Equal("Ledger/Kafka", requete.Namespace);
+        Assert.Equal(
+            [("NoeudsPresents", 3d, "kafka-2"), ("PartitionsSousRepliquees", 1d, "kafka-2"), ("EspaceDisqueLibrePourcent", 42.5, "kafka-2"), ("RetardGroupe", 17d, "ledger-projections")],
+            requete.MetricData.Select(m => (m.MetricName, m.Value ?? 0, m.Dimensions[0].Value)));
     }
 
     [Fact]
@@ -126,6 +155,17 @@ public sealed class AdaptateursSentinelleTests : IDisposable
         Assert.Equal(SecurityProtocol.Ssl, config.SecurityProtocol);
         Assert.Equal(("chaine", "cle", "racine"), (config.SslCertificatePem, config.SslKeyPem, config.SslCaPem));
         Assert.Equal(SslEndpointIdentificationAlgorithm.Https, config.SslEndpointIdentificationAlgorithm);
+    }
+
+    private sealed class CloudWatchEssai() : Amazon.CloudWatch.AmazonCloudWatchClient(new Amazon.Runtime.AnonymousAWSCredentials(), Amazon.RegionEndpoint.CACentral1)
+    {
+        public List<Amazon.CloudWatch.Model.PutMetricDataRequest> Requetes { get; } = [];
+
+        public override Task<Amazon.CloudWatch.Model.PutMetricDataResponse> PutMetricDataAsync(Amazon.CloudWatch.Model.PutMetricDataRequest request, CancellationToken cancellationToken = default)
+        {
+            Requetes.Add(request);
+            return Task.FromResult(new Amazon.CloudWatch.Model.PutMetricDataResponse());
+        }
     }
 
     internal static ProfilCertificat ProfilBroker => new("kafka-1", ["localhost"], UsageCertificat.Serveur | UsageCertificat.Client);

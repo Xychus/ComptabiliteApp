@@ -107,6 +107,49 @@ public sealed class KafkaMtlsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Mesures_de_la_grappe_collectees_en_mtls()
+    {
+        var configuration = SanteGrappeKafka.Configuration(Serveurs, _broker);
+        using (var admin = new AdminClientBuilder(configuration).Build())
+        {
+            await admin.CreateTopicsAsync([new TopicSpecification { Name = "ledger.events", NumPartitions = 1, ReplicationFactor = 1 }]);
+        }
+
+        using (var producteur = new ProducerBuilder<Null, string>(new ProducerConfig(configuration)).Build())
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                await producteur.ProduceAsync("ledger.events", new Message<Null, string> { Value = $"m{i}" }, TestContext.Current.CancellationToken);
+            }
+        }
+
+        using (var consommateur = new ConsumerBuilder<Ignore, Ignore>(new ConsumerConfig(configuration) { GroupId = "ledger-projections" }).Build())
+        {
+            // Le sujet __consumer_offsets est créé à la première demande : le coordinateur tarde.
+            for (var tentative = 1; ; tentative++)
+            {
+                try
+                {
+                    consommateur.Commit([new TopicPartitionOffset("ledger.events", 0, 1)]);
+                    break;
+                }
+                catch (KafkaException) when (tentative < 30)
+                {
+                    await Task.Delay(500, TestContext.Current.CancellationToken);
+                }
+            }
+        }
+
+        var mesures = await new CollecteMesuresKafka(Serveurs, Path.GetTempPath(), ["ledger-projections", "groupe-inconnu"])
+            .CollecterAsync(_broker, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, mesures.NoeudsPresents);
+        Assert.Equal(0, mesures.PartitionsSousRepliquees);
+        Assert.Equal(2, mesures.RetardsGroupes["ledger-projections"]);
+        Assert.Equal(0, mesures.RetardsGroupes["groupe-inconnu"]);
+    }
+
+    [Fact]
     public async Task Client_d_une_autre_pki_est_refuse()
     {
         using var autrePki = new AutoriteEssai(nomRacine: "CN=Racine etrangere", maintenant: DateTimeOffset.UtcNow);
