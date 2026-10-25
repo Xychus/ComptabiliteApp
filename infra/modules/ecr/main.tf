@@ -1,13 +1,14 @@
 # Un dépôt par service : étiquettes immuables (la version SemVer exacte, jamais « latest »),
 # chiffrement par la CMK « ecr », analyse à la poussée. Les images étiquetées ne sont jamais
-# expirées : une version déployée doit rester récupérable.
+# expirées : une version déployée doit rester récupérable. Un dépôt contenant des images n'est
+# supprimé que si suppression_forcee est vrai (environnement jetable, ADR 0027).
 
 resource "aws_ecr_repository" "depot" {
   for_each = var.depots
 
   name                 = "${var.prefixe}/${each.key}"
   image_tag_mutability = "IMMUTABLE"
-  force_delete         = false
+  force_delete         = var.suppression_forcee
 
   encryption_configuration {
     encryption_type = "KMS"

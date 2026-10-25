@@ -74,7 +74,8 @@ déploiement.
   échoue sur l'empreinte, ce qui force une PR visible.
 - Le mot de passe maître change tous les 7 jours : les tâches le relisent à chaque lancement
   (secrets ECS). Aucun service de longue durée ne doit utiliser le rôle maître.
-- Coût en dev : deux instances `db.r7g.large` en continu (classe surchargeable par environnement).
+- Coût en dev : réduit par Aurora Serverless v2 en dev (ADR 0027) ; la prod garde des instances
+  provisionnées.
 - Les migrations ne s'exécutent qu'à partir de la phase 10 : aucune image n'est publiée avant
   `deploy.yml` (décision du responsable du projet, 2026-10-25). La définition de tâche référence
   `ledger/migrations:<version>`, fournie par le déploiement.

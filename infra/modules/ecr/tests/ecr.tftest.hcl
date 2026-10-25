@@ -26,6 +26,11 @@ run "depots_immuables_chiffres_par_cmk" {
   }
 
   assert {
+    condition     = alltrue([for d in aws_ecr_repository.depot : !d.force_delete])
+    error_message = "Par défaut, un dépôt contenant des images n'est jamais supprimé."
+  }
+
+  assert {
     condition     = alltrue([for d in aws_ecr_repository.depot : d.image_scanning_configuration[0].scan_on_push])
     error_message = "L'analyse à la poussée doit être activée."
   }

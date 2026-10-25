@@ -40,6 +40,41 @@ variable "classe_instance" {
   default     = "db.r7g.large"
 }
 
+variable "capacite_serverless" {
+  description = <<-EOT
+    Aurora Serverless v2 (instances db.serverless) au lieu d'instances provisionnées. null :
+    classe_instance s'applique. minimum_acu = 0 permet la pause des lecteurs de rang 2 et plus ;
+    le rédacteur ne se met jamais en pause tant que la réplication logique est active (ADR 0027).
+  EOT
+  type = object({
+    minimum_acu          = number
+    maximum_acu          = number
+    secondes_avant_pause = optional(number, 300)
+  })
+  default = null
+
+  validation {
+    condition = var.capacite_serverless == null || try(
+      var.capacite_serverless.minimum_acu >= 0 && var.capacite_serverless.maximum_acu >= max(1, var.capacite_serverless.minimum_acu)
+      && var.capacite_serverless.maximum_acu <= 256
+      && var.capacite_serverless.secondes_avant_pause >= 300 && var.capacite_serverless.secondes_avant_pause <= 86400,
+    false)
+    error_message = "ACU : minimum de 0 à maximum, maximum de 1 à 256 ; pause après 300 à 86 400 secondes."
+  }
+}
+
+variable "protection_suppression" {
+  description = "Protection contre la suppression de la grappe. false : environnement jetable seulement (dev)."
+  type        = bool
+  default     = true
+}
+
+variable "instantane_final" {
+  description = "Instantané final à la suppression de la grappe. false : environnement jetable seulement (dev)."
+  type        = bool
+  default     = true
+}
+
 variable "nombre_instances" {
   description = "Nombre d'instances : un rédacteur et au moins un lecteur, cible de basculement."
   type        = number

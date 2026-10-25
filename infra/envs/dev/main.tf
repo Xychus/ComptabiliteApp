@@ -1,6 +1,10 @@
 # Environnement « dev » : composition des modules de fondation (phase 6) et de données
 # (phase 7). Les rôles et la frontière de permissions viennent de l'amorçage du compte
 # (infra/bootstrap), désignés par convention de nom.
+#
+# Environnement jetable (ADR 0027) : détruit par infra-destroy.yml, recréé par infra-apply.yml.
+# Aurora en Serverless v2, sans protection contre la suppression ni instantané final ; dépôts
+# ECR supprimables pleins ; CMK supprimées après 7 jours. Prod garde toutes les protections.
 
 locals {
   environnement = "dev"
@@ -20,6 +24,8 @@ module "kms" {
   compte_aws      = var.compte_aws
   region          = var.region
   administrateurs = concat([local.arn_role_apply], var.administrateurs_kms)
+
+  delai_suppression_jours = 7
 }
 
 module "reseau" {
@@ -40,20 +46,26 @@ module "ecr" {
   prefixe     = "ledger"
   depots      = local.depots_ecr
   cle_kms_arn = module.kms.arns["ecr"]
+
+  suppression_forcee = true
 }
 
 # --- Données (phase 7) -------------------------------------------------------------------------
 
 module "aurora" {
+  #checkov:skip=CKV_AWS_139:Dev jetable (ADR 0027) : détruit et recréé par le pipeline ; la prod garde la protection contre la suppression.
   source = "../../modules/aurora"
 
   prefixe              = local.prefixe
   vpc_id               = module.reseau.vpc_id
   sous_reseaux         = module.reseau.sous_reseaux_donnees
-  classe_instance      = var.classe_instance_aurora
+  capacite_serverless  = var.capacite_aurora
   cle_kms_aurora_arn   = module.kms.arns["aurora"]
   cle_kms_secrets_arn  = module.kms.arns["secrets"]
   cle_kms_journaux_arn = module.kms.arns["logs"]
+
+  protection_suppression = false
+  instantane_final       = false
 }
 
 module "archive" {
