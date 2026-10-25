@@ -142,6 +142,21 @@ resource "aws_vpc_endpoint" "s3" {
   }
 }
 
+# --- Zone DNS privée -----------------------------------------------------------------------
+
+# Noms stables des brokers Kafka (kafka-1.<domaine>…), présents dans leurs certificats (SAN).
+# « .internal » est réservé à l'usage privé (ICANN, 2024) : aucune collision avec un nom public.
+resource "aws_route53_zone" "interne" {
+  #checkov:skip=CKV2_AWS_38:Zone privée : DNSSEC n'est pas pris en charge par Route 53 pour une zone privée.
+  #checkov:skip=CKV2_AWS_39:Zone privée : la journalisation des requêtes se configure par le résolveur, hors du périmètre de la phase 8.
+  name    = coalesce(var.domaine_interne, "${var.prefixe}.internal")
+  comment = "Noms internes de ${var.prefixe} (brokers Kafka)"
+
+  vpc {
+    vpc_id = aws_vpc.vpc.id
+  }
+}
+
 # --- Journaux de flux VPC ------------------------------------------------------------------
 
 resource "aws_cloudwatch_log_group" "journaux_de_flux" {

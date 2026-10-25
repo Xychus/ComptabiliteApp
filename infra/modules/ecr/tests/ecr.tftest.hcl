@@ -50,3 +50,34 @@ run "refuse_une_cle_geree_par_aws" {
 
   expect_failures = [var.cle_kms_arn]
 }
+
+run "lambda_tire_seulement_ses_depots" {
+  command = apply
+
+  variables {
+    depots               = ["command-api", "pki-lambda"]
+    depots_lambda        = ["pki-lambda"]
+    arn_fonctions_lambda = "arn:aws:lambda:ca-central-1:111122223333:function:ledger-*"
+  }
+
+  assert {
+    condition     = toset(keys(aws_ecr_repository_policy.lambda)) == toset(["pki-lambda"])
+    error_message = "Seuls les dépôts Lambda reçoivent une politique."
+  }
+
+  assert {
+    condition     = jsondecode(aws_ecr_repository_policy.lambda["pki-lambda"].policy).Statement[0].Condition.ArnLike["aws:sourceArn"] == "arn:aws:lambda:ca-central-1:111122223333:function:ledger-*"
+    error_message = "Seules les fonctions du compte peuvent tirer l'image."
+  }
+}
+
+run "depot_lambda_inconnu_refuse" {
+  command = plan
+
+  variables {
+    depots        = ["command-api"]
+    depots_lambda = ["pki-lambda"]
+  }
+
+  expect_failures = [var.depots_lambda]
+}
