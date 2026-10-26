@@ -310,6 +310,16 @@ resource "aws_iam_role_policy" "apply_iam" {
         ]
         Resource = "arn:aws:iam::${var.compte_aws}:policy${local.chemin_charges}*"
       },
+      # Profils d'instance des brokers Kafka (ADR 0024), même chemin que les rôles.
+      {
+        Sid    = "ProfilsInstance"
+        Effect = "Allow"
+        Action = [
+          "iam:AddRoleToInstanceProfile", "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile", "iam:TagInstanceProfile", "iam:UntagInstanceProfile",
+        ]
+        Resource = "arn:aws:iam::${var.compte_aws}:instance-profile${local.chemin_charges}*"
+      },
       {
         Sid      = "LectureIam"
         Effect   = "Allow"
@@ -373,6 +383,13 @@ resource "aws_iam_policy" "frontiere" {
           "ec2:DeleteNetworkInterface", "ec2:Describe*", "ec2:UnassignPrivateIpAddresses",
           "ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:GetAuthorizationToken", "ecr:GetDownloadUrlForLayer",
           "kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey*", "kms:ReEncrypt*",
+          # Phase 8 — Lambda PKI : signature par l'intermédiaire, réimport ACM, redéploiement, inventaire.
+          "acm:ImportCertificate", "ecs:DescribeServices", "ecs:UpdateService", "kms:GetPublicKey", "kms:Sign",
+          "secretsmanager:ListSecrets",
+          # Phase 8 — agent ECS des brokers Kafka (instances EC2) et tâche planifiée de purge.
+          "ecs:DeregisterContainerInstance", "ecs:DiscoverPollEndpoint", "ecs:Poll", "ecs:RegisterContainerInstance",
+          "ecs:RunTask", "ecs:StartTelemetrySession", "ecs:SubmitAttachmentStateChange", "ecs:SubmitContainerStateChange",
+          "ecs:SubmitTaskStateChange", "ecs:TagResource", "ecs:UpdateContainerInstancesState",
           "logs:CreateLogGroup", "logs:CreateLogStream", "logs:DescribeLogGroups", "logs:DescribeLogStreams", "logs:PutLogEvents",
           "rds-db:connect",
           "s3:AbortMultipartUpload", "s3:GetBucketLocation", "s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket",
@@ -388,8 +405,24 @@ resource "aws_iam_policy" "frontiere" {
       {
         Sid      = "AucuneGestionDeCompte"
         Effect   = "Deny"
-        Action   = ["account:*", "iam:*", "organizations:*"]
+        Action   = ["account:*", "organizations:*"]
         Resource = "*"
+      },
+      # Aucune action IAM, sauf passer un rôle /ledger/ à ECS : la règle EventBridge de la purge
+      # planifiée lance une tâche avec ses rôles. La clé est absente pour toute autre action : refus.
+      {
+        Sid       = "AucuneGestionIamSaufPassageAEcs"
+        Effect    = "Deny"
+        Action    = "iam:*"
+        Resource  = "*"
+        Condition = { StringNotEquals = { "iam:PassedToService" = "ecs-tasks.amazonaws.com" } }
+      },
+      {
+        Sid       = "PassageDeRoleAEcs"
+        Effect    = "Allow"
+        Action    = "iam:PassRole"
+        Resource  = "arn:aws:iam::${var.compte_aws}:role${local.chemin_charges}*"
+        Condition = { StringEquals = { "iam:PassedToService" = "ecs-tasks.amazonaws.com" } }
       },
     ]
   })

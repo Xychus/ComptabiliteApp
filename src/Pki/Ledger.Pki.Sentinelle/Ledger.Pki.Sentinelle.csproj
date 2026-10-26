@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ledger.Pki.Application\Ledger.Pki.Application.csproj" />
+    <ProjectReference Include="..\Ledger.Pki.Infrastructure\Ledger.Pki.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

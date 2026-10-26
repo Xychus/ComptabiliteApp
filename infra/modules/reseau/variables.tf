@@ -67,5 +67,16 @@ variable "frontiere_permissions_arn" {
 variable "services_points_de_terminaison" {
   description = "Services AWS joints par un point de terminaison d'interface (suffixe de com.amazonaws.<région>.)."
   type        = set(string)
-  default     = ["kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api"]
+  # Phase 8 : acm (réimport du certificat de l'ALB), ecs / ecs-agent / ecs-telemetry (agent ECS des
+  # brokers sur EC2, redéploiements par la Lambda PKI), monitoring (métriques), xray (traces).
+  default = [
+    "kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api",
+    "acm", "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
+  ]
+}
+
+variable "domaine_interne" {
+  description = "Zone DNS privée du VPC (noms stables des brokers Kafka), ex. « ledger-dev.internal ». null : <prefixe>.internal."
+  type        = string
+  default     = null
 }

@@ -78,6 +78,8 @@ ATTRIBUTS_CMK = {
     "aws_ebs_volume": [("kms_key_id", None)],
     "aws_ecr_repository": [("encryption_configuration.kms_key", None)],
     "aws_ecs_cluster": [("configuration.managed_storage_configuration.fargate_ephemeral_storage_kms_key_id", None)],
+    # Volume racine des hôtes EC2 (brokers Kafka) : sans clé, aws/ebs.
+    "aws_instance": [("root_block_device.kms_key_id", None)],
     "aws_lambda_function": [("kms_key_arn", None)],
     "aws_msk_cluster": [("encryption_info.encryption_at_rest_kms_key_arn", None)],
     "aws_rds_cluster": [

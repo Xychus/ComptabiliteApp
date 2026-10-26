@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Hebergement\Ledger.Hebergement\Ledger.Hebergement.csproj" />
     <ProjectReference Include="..\Ledger.Query.Application\Ledger.Query.Application.csproj" />
     <ProjectReference Include="..\Ledger.Query.Infrastructure\Ledger.Query.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Contracts\Ledger.Contracts\Ledger.Contracts.csproj" />

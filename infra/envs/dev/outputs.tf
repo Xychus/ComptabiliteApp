@@ -54,3 +54,16 @@ output "migrations" {
     groupe_securite = module.migrations.configuration_reseau.groupe_securite
   }
 }
+
+output "execution" {
+  description = "Exécution (phase 8) : Kafka, initialisation, équilibreur, Lambda PKI, tableau de bord."
+  value = {
+    serveurs_kafka       = module.kafka.serveurs
+    initialisation_kafka = module.kafka.initialisation
+    api                  = module.equilibreur.nom_hote
+    fonction_pki         = module.pki.fonction_lambda
+    rotation_certificats = module.pki.rotation_active
+    cles_intermediaire   = module.pki.cles_intermediaire
+    tableau_de_bord      = module.observabilite.tableau_de_bord
+  }
+}

@@ -1,3 +1,4 @@
+using Ledger.Postgres.Infrastructure;
 using Ledger.Query.Api.Observabilite;
 using Ledger.Query.Application;
 using Ledger.Query.Application.Fraicheur;
@@ -40,6 +41,7 @@ public static class ServicesRequete
 
         // Lue à la résolution, pas à l'enregistrement : la génération du contrat OpenAPI au build
         // compose l'application sans chaîne de connexion. Son absence fait échouer le démarrage.
+        services.AjouterAuthentificationPostgres(configuration.GetSection(OptionsPostgres.Section).Get<OptionsPostgres>() ?? new OptionsPostgres());
         services.AjouterLecturePostgres(sp => sp.GetRequiredService<IConfiguration>().GetConnectionString(NomChaineConnexion)
             ?? throw new InvalidOperationException($"Chaîne de connexion « {NomChaineConnexion} » absente."));
         if (!GenerationDocument.EnCours)

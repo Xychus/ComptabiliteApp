@@ -10,7 +10,11 @@ locals {
   arn_role_plan  = "arn:aws:iam::${var.compte_aws}:role/bootstrap/gha-plan"
   arn_frontiere  = "arn:aws:iam::${var.compte_aws}:policy/bootstrap/ledger-frontiere-charges"
 
-  depots_ecr = ["command-api", "query-api", "projections-worker", "migrations"]
+  # Services du dépôt, puis copies des images officielles tierces (ADR 0028, images.yml).
+  depots_ecr = [
+    "command-api", "query-api", "projections-worker", "migrations", "pki-lambda", "pki-sentinelle",
+    "kafka", "debezium-connect", "aws-otel-collector",
+  ]
 }
 
 module "kms" {
@@ -40,6 +44,9 @@ module "ecr" {
   prefixe     = "ledger"
   depots      = local.depots_ecr
   cle_kms_arn = module.kms.arns["ecr"]
+
+  depots_lambda        = ["pki-lambda"]
+  arn_fonctions_lambda = "arn:aws:lambda:${var.region}:${var.compte_aws}:function:${local.prefixe}-*"
 }
 
 # --- Données (phase 7) -------------------------------------------------------------------------

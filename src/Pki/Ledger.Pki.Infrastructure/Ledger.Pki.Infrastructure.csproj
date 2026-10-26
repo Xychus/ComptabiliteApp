@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.CertificateManager" />
+    <PackageReference Include="AWSSDK.CloudWatch" />
+    <PackageReference Include="AWSSDK.ECS" />
+    <PackageReference Include="AWSSDK.KeyManagementService" />
+    <PackageReference Include="AWSSDK.SecretsManager" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ledger.Pki.Application\Ledger.Pki.Application.csproj" />
+  </ItemGroup>
+
+</Project>

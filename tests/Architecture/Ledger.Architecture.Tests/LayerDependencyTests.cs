@@ -30,7 +30,7 @@ public sealed class LayerDependencyTests
 
     [Fact]
     public void Application_ne_depend_ni_de_l_infrastructure_ni_de_la_composition() =>
-        Types().That().ResideInAssembly(CommandApplication, ProjectionsApplication, QueryApplication)
+        Types().That().ResideInAssembly(CommandApplication, ProjectionsApplication, QueryApplication, PkiApplication)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(InfrastructureLayerNamespaces)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(CompositionNamespaces)
             .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching(InfrastructureNamespaces)
@@ -38,14 +38,26 @@ public sealed class LayerDependencyTests
 
     [Fact]
     public void Infrastructure_ne_depend_pas_de_la_composition() =>
-        Types().That().ResideInAssembly(CommandInfrastructure, ProjectionsInfrastructure, QueryInfrastructure)
+        Types().That().ResideInAssembly(CommandInfrastructure, ProjectionsInfrastructure, QueryInfrastructure, PkiInfrastructure)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(CompositionNamespaces)
             .Check(Model);
 
     [Fact]
     public void La_composition_ne_touche_pas_directement_la_base_ni_Kafka_ni_AWS() =>
-        Types().That().ResideInAssembly(CommandApi, ProjectionsWorker, QueryApi)
+        Types().That().ResideInAssembly(CommandApi, ProjectionsWorker, QueryApi, PkiSentinelle)
             .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(DataAccessNamespaces)
+            .Check(Model);
+
+    [Fact]
+    public void La_composition_Lambda_ne_touche_AWS_que_par_l_infrastructure() =>
+        Types().That().ResideInAssembly(PkiLambda)
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(DataAccessNamespacesHorsTransportLambda)
+            .Check(Model);
+
+    [Fact]
+    public void La_PKI_ne_depend_d_aucun_service_du_grand_livre() =>
+        Types().That().ResideInNamespaceMatching(@"^Ledger\.Pki(\..*)?$")
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching(@"^Ledger\.(Command|Projections|Query|Authorizer|Contracts)(\..*)?$")
             .Check(Model);
 
     [Fact]
