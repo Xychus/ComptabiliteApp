@@ -21,6 +21,7 @@ locals {
     ecs          = { description = "ECS Fargate : stockage éphémère des tâches", services = [] }
     lambda       = { description = "Lambda : variables d'environnement", services = ["lambda"] }
     ssm          = { description = "SSM Parameter Store : paramètres SecureString", services = ["ssm"] }
+    xray         = { description = "X-Ray : traces des services (phase 8)", services = ["xray"] }
   }
 
   actions_administration = [

@@ -124,7 +124,7 @@ run "ecouteurs_ssl_seulement_mtls_tls13_refus_par_defaut" {
   }
 
   assert {
-    condition = { for e in jsondecode(aws_ecs_task_definition.noeud["kafka-1"].container_definitions)[1].environment : e.name => e.value }["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] == "MTLS:SSL,CONTROLLER:SSL"
+    condition     = { for e in jsondecode(aws_ecs_task_definition.noeud["kafka-1"].container_definitions)[1].environment : e.name => e.value }["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] == "MTLS:SSL,CONTROLLER:SSL"
     error_message = "Les deux écouteurs sont en SSL."
   }
 
