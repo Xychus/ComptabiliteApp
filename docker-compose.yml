@@ -51,7 +51,7 @@ services:
       migrations: { condition: service_completed_successfully }
 
   kafka:
-    image: apache/kafka:4.3.2
+    image: apache/kafka:4.4.0
     environment:
       CLUSTER_ID: bGVkZ2VyLWxvY2FsLTAwMQ
       KAFKA_NODE_ID: 1
@@ -75,7 +75,7 @@ services:
       retries: 30
 
   kafka-topics:
-    image: apache/kafka:4.3.2
+    image: apache/kafka:4.4.0
     entrypoint: ["/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists",
                  "--topic", "ledger.events", "--partitions", "6", "--replication-factor", "1"]
     depends_on:
