@@ -79,19 +79,22 @@ personnes travaillent sur le projet.
 | 0028 | **Images tierces copiées dans ECR par le CI** (`images.yml`), étiquette exacte de l'éditeur ; **publication minimale dès la phase 8** | Le cache *pull-through* de Docker Hub exige un secret chiffré par `aws/secretsmanager` ; sans image, rien ne démarre en phase 8 | 8 |
 | 0029 | **Authentification IAM à Aurora** pour les services et la purge ; **mot de passe de Debezium renouvelé tous les 5 jours** par la Lambda (vérificateur SCRAM) | Aucun mot de passe à stocker pour les services ; le pilote JDBC de Debezium ne gère pas l'IAM | 8 |
 | 0027 | **Dev jetable** (protections levées en dev seulement, `infra-destroy.yml` avec confirmation et vérifications préalables) ; **Aurora Serverless v2 en dev** (0–4 ACU, réplication logique active : le rédacteur ne se met pas en pause, le lecteur au rang 2 si) | Supprimer dev après un essai et le recréer ; coût réduit ; prod inchangée | 7 |
+| 0030 | **Keycloak sur ECS dans le VPC**, realm importé au démarrage, clients internes authentifiés par **mTLS** (certificats PKI), aucun compte d'administration permanent, schéma Aurora avec mot de passe renouvelé | Pas de sortie Internet ; aucun secret client à renouveler ; le runner ne joint pas le VPC | 9 |
+| 0031 | API REST privée, autorizer `REQUEST` (`dotnet10`), clés de plan d'usage en SSM, **VPC Link V2 vers l'ALB**, **certificat ACM public** dans la zone publique du compte | P2 et P3 ; certificat de la cible vérifié par API Gateway | 9 |
 
 ### Points à valider par un humain avant la phase concernée
 
 - **P1 — PKI et clé non gérée par AWS : résolu le 2026-10-23** (ADR 0010). Racine OpenSSL hors
   ligne détenue par l'organisation, CA intermédiaire en ligne (clé dans Secrets Manager),
   certificats finaux de 7 jours ; AWS Private CA écartée (coût, indépendance).
-- **P2 (avant phase 9)** — Intégration privée API Gateway REST → backend : vérifier si le VPC
+- **P2 — résolu le 2026-11-02** (ADR 0031) : VPC Link V2 vers l'ALB, certificat ACM public sur
+  l'ALB. Énoncé d'origine : Intégration privée API Gateway REST → backend : vérifier si le VPC
   Link cible directement un ALB dans la région, sinon NLB devant l'ALB interne. L'ALB interne
   (phase 8) présente un certificat de la PKI interne : API Gateway ne valide que des certificats
   publics vers un backend, d'où `insecureSkipVerification` (trafic chiffré, serveur non
   authentifié) ou une autre solution à trancher en phase 9.
-- **P3 (avant phase 9)** — Runtime Lambda `dotnet10` disponible dans la région, sinon Native AOT
-  sur `provided.al2023`.
+- **P3 — résolu le 2026-11-02** (ADR 0031) : runtime géré `dotnet10` disponible dans toutes les
+  régions depuis le 2026-01-08.
 - **P4 — Version Aurora : résolu le 2026-10-25** (ADR 0025) : Aurora PostgreSQL **18.6** (majeure
   18 publiée le 2026-06-11), réplication logique par `rds.logical_replication`. La documentation
   AWS ne dit pas si un slot logique survit au basculement : **à constater au point d'arrêt de la
@@ -485,20 +488,42 @@ nœud Kafka (documentés dans des runbooks).
 **Objectif** : authentification et throttling par client interne.
 
 ### Tâches
-- [ ] Module `keycloak` (provider `keycloak/keycloak`) : realm, client confidentiel par
-      application interne (*client credentials* uniquement), mapper d'audience `ledger-api`,
-      client scopes `ledger:read` / `ledger:write`, jetons de 5 minutes, signature asymétrique
-- [ ] `Ledger.Authorizer` (.NET 10, runtime selon P3) : validation JWT via la configuration
-      OIDC du realm mise en cache, lecture de `azp` et des scopes, recherche de la clé du plan
-      d'usage (SSM SecureString CMK), politique couvrant **toutes** les routes autorisées par
-      les scopes (piège du cache de politique), `usageIdentifierKey`, `context.clientId`
+
+Révisée le 2026-11-02 (décisions du responsable du projet, [ADR 0030](../adr/0030-keycloak-heberge-dans-le-vpc.md),
+[ADR 0031](../adr/0031-entree-api-gateway-privee.md)) : Keycloak hébergé dans le VPC, realm importé
+au démarrage, clients authentifiés par certificat de la PKI, certificat ACM public sur l'ALB. Trois PR.
+
+**9a — Autorizer et clients (.NET seulement)**
+- [ ] `Ledger.Authorizer` (Lambda `REQUEST`, runtime géré `dotnet10`) : validation JWT via la
+      configuration OIDC du realm mise en cache (canal arrière qui fait confiance à la racine de
+      la PKI), lecture de `azp` et des scopes, recherche de la clé du plan d'usage (SSM
+      SecureString CMK), politique couvrant **toutes** les routes autorisées par les scopes (piège
+      du cache de politique), `usageIdentifierKey`, `context.clientId`
 - [ ] Tests unitaires de l'autorizer (jetons valides, expirés, mauvaise audience, mauvais émetteur,
-      scopes → politique) avec un JWKS de test
+      mauvaise signature, scopes → politique) avec un JWKS de test
+- [ ] Clients .NET d'exemple : jeton par *client credentials* authentifié en mTLS (certificat PKI),
+      cache du jeton, retry à backoff sur `429`
+- [ ] API : canal arrière OIDC qui fait confiance à la racine de la PKI (option de configuration)
+
+**9b — Keycloak dans le VPC**
+- [ ] Realm `ledger` pour AWS (`infra/keycloak/ledger-realm.json`) : scopes `ledger:read` /
+      `ledger:write`, mapper d'audience `ledger-api`, clients X.509 (DN `CN=<client>`), jetons de
+      300 s, ES256 ; test Testcontainers (`keycloak:26.8`) : jeton obtenu en mTLS, refusé sans
+      certificat ou avec un certificat d'une autre PKI ; démarrage sans compte d'administration
+- [ ] Migration : schéma et rôle `keycloak` (`NOLOGIN` en local, mot de passe renouvelé en AWS)
+- [ ] Module `keycloak` (service ECS, sentinelle PKI, `https-client-auth=request`, TLS 1.3,
+      base Aurora `verify-server`, mot de passe par la Lambda de rotation) ; image copiée par `images.yml`
+- [ ] Amorçage : zone Route 53 publique du compte (`<env>.aws.usinageone.ca`)
+
+**9c — API Gateway**
+- [ ] Équilibreur : certificat ACM public (validation DNS dans la zone publique), entrée limitée au
+      groupe du VPC Link ; retrait de l'identité PKI `api` et de son réimport
 - [ ] Module `apigateway` : API REST **privée** (`api_key_source = "AUTHORIZER"`), resource policy
-      limitée au VPC endpoint `execute-api`, autorizer Lambda (TTL ≤ durée des jetons), intégration
-      privée (selon P2), plans d'usage par catégorie de clients, throttling distinct écriture/lecture,
-      journaux d'accès chiffrés CMK, cache API Gateway **désactivé**
-- [ ] Clients .NET d'exemple : obtention du jeton avec cache, retry à backoff sur `429`
+      limitée au VPC endpoint `execute-api`, autorizer Lambda (TTL ≤ durée des jetons), VPC Link V2
+      vers l'ALB (`integration_target`), plans d'usage par catégorie de clients, throttling distinct
+      écriture/lecture, journaux d'accès chiffrés CMK, cache API Gateway **désactivé**
+- [ ] Runbook du point d'arrêt (délégation DNS, client réel, modification du realm, compte
+      d'administration temporaire)
 
 ### Critères d'acceptation
 - Sans jeton, ou avec un jeton d'une mauvaise audience : `401`/`403`.

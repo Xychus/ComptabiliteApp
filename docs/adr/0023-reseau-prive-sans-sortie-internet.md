@@ -35,6 +35,8 @@ autorizer Lambda) n'ont besoin, aux phases 7 et 8, que de services AWS.
 - **Phase 9** : l'autorizer Lambda doit obtenir les clés publiques (JWKS) du realm Keycloak.
   Si Keycloak n'est pas joignable de façon privée (VPC, PrivateLink, VPN), il faudra soit un
   NAT et un sous-réseau public (amendement de cet ADR), soit fournir les clés autrement.
+  **Tranché en phase 9** (ADR 0030) : Keycloak est hébergé sur ECS dans le VPC ; aucune sortie
+  Internet n'est ajoutée.
 - Chaque phase ajoute ses propres groupes de sécurité (Aurora, Kafka, ECS) en référençant le
   VPC et les sous-réseaux exportés ; d'autres points de terminaison seront ajoutés au besoin
   (ex. `monitoring`, `ssmmessages`, `ec2` pour les instances ECS de Kafka) par la variable `services_points_de_terminaison`.

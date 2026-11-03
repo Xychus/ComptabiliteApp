@@ -86,3 +86,12 @@ Mise en œuvre de la phase 8 ; elle précise ou remplace les points 2, 3 et 5 ci
 Conséquences supplémentaires : une clé KMS asymétrique coûte 1 $/mois et chaque signature est
 facturée ; KMS n'est pas « indépendant d'AWS », mais Secrets Manager ne l'était pas davantage.
 Runbook : `docs/runbooks/pki-ceremonie-annuelle.md`.
+
+## Révision (2026-11-02, phase 9)
+
+- **Équilibreur interne : certificat ACM public** à la place du certificat de la PKI réimporté
+  (ADR 0031) : API Gateway ne valide que des autorités publiques vers une intégration privée.
+  Les cibles de l'équilibreur (Kestrel) gardent leur certificat de la PKI.
+- **Clients de Keycloak authentifiés par un certificat `client` de la PKI** (ADR 0030) : la racine
+  de l'environnement est le magasin de confiance de Keycloak ; les API et l'autorizer lui font
+  confiance pour le canal arrière OIDC.
