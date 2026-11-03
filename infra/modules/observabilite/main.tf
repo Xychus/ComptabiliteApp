@@ -47,11 +47,11 @@ locals {
             region = var.region
             view   = "timeSeries"
             period = 60
-            metrics = flatten([
-              for api, suffixe in var.suffixes_groupes_cibles : [
-                for p in ["p50", "p95", "p99"] : ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.suffixe_equilibreur, "TargetGroup", suffixe, { stat = p, label = "${api} ${p}" }]
-              ]
-            ])
+            # setproduct, pas flatten : flatten aplatirait aussi chaque métrique (liste attendue).
+            metrics = [
+              for paire in setproduct(sort(keys(var.suffixes_groupes_cibles)), ["p50", "p95", "p99"]) :
+              ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.suffixe_equilibreur, "TargetGroup", var.suffixes_groupes_cibles[paire[0]], { stat = paire[1], label = "${paire[0]} ${paire[1]}" }]
+            ]
           }
         },
         {
