@@ -41,3 +41,24 @@ run "tableau_de_bord_du_plan" {
     error_message = "Le tableau de bord porte latence, 409/422, retard des projections et retard CDC."
   }
 }
+
+# Format exigé par CloudWatch (PutDashboard) : « metrics » est une liste de listes ; une chaîne
+# isolée (métrique aplatie) est refusée à l'apply, mais acceptée par validate et plan.
+run "chaque_metrique_est_une_liste" {
+  command = apply
+
+  assert {
+    condition = alltrue(flatten([
+      for w in jsondecode(aws_cloudwatch_dashboard.exploitation.dashboard_body).widgets : [
+        for m in w.properties.metrics : can(m[0])
+      ]
+    ]))
+    error_message = "Chaque entrée de « metrics » doit être une liste (métrique ou expression)."
+  }
+
+  assert {
+    condition     = length(jsondecode(aws_cloudwatch_dashboard.exploitation.dashboard_body).widgets[0].properties.metrics) == 6
+    error_message = "Latence : trois percentiles pour chacune des deux API."
+  }
+}
+
