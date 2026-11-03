@@ -8,18 +8,13 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "cidr_vpc" {
-  description = "Bloc CIDR du VPC : seule origine admise sur HTTPS (VPC Link d'API Gateway en phase 9)."
-  type        = string
-}
-
 variable "sous_reseaux" {
   description = "Sous-réseaux « applications » de l'équilibreur interne."
   type        = list(string)
 }
 
-variable "zone_interne" {
-  description = "Zone DNS privée du VPC (identifiant et domaine) : l'équilibreur y est publié sous api.<domaine>."
+variable "zone_publique" {
+  description = "Zone DNS publique du compte (amorçage, ADR 0031) : validation du certificat de api.<domaine>."
   type = object({
     id      = string
     domaine = string

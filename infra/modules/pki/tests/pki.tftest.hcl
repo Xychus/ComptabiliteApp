@@ -55,7 +55,7 @@ variables {
   identites = {
     debezium = { nom_commun = "debezium", usage = "client", services = ["debezium"] }
     kafka-1  = { nom_commun = "kafka-1", usage = "serveur-client", noms_dns = ["kafka-1.ledger-dev.interne"] }
-    alb      = { nom_commun = "api", usage = "serveur", noms_dns = ["api.ledger-dev.interne"], certificat_acm_arn = "arn:aws:acm:ca-central-1:111122223333:certificate/abc" }
+    api      = { nom_commun = "command-api", usage = "serveur", noms_dns = ["command-api.ledger-dev.interne"] }
   }
 }
 
@@ -80,11 +80,6 @@ run "sans_image_ni_ceremonie_secrets_seulement" {
   assert {
     condition     = aws_secretsmanager_secret.certificat["debezium"].tags["pki:grappe"] == "ledger-dev" && aws_secretsmanager_secret.certificat["debezium"].tags["pki:services"] == "debezium" && !contains(keys(aws_secretsmanager_secret.certificat["debezium"].tags), "pki:san")
     error_message = "Les services à redéployer sont étiquetés ; pas de SAN pour un client."
-  }
-
-  assert {
-    condition     = aws_secretsmanager_secret.certificat["alb"].tags["pki:acm"] == "arn:aws:acm:ca-central-1:111122223333:certificate/abc"
-    error_message = "Le certificat ACM à réimporter est étiqueté."
   }
 }
 
@@ -153,11 +148,6 @@ run "seule_la_lambda_signe_des_condenses_sha384" {
   assert {
     condition     = toset(one([for s in jsondecode(aws_iam_role_policy.lambda.policy).Statement : s.Resource if s.Sid == "RedeploiementServices"])) == toset(["arn:aws:ecs:ca-central-1:111122223333:service/ledger-dev/debezium"])
     error_message = "Seuls les services étiquetés peuvent être redéployés."
-  }
-
-  assert {
-    condition     = one([for s in jsondecode(aws_iam_role_policy.lambda.policy).Statement : s.Resource if s.Sid == "ReimportAcm"]) == ["arn:aws:acm:ca-central-1:111122223333:certificate/abc"]
-    error_message = "Seul le certificat ACM désigné peut être réimporté."
   }
 }
 

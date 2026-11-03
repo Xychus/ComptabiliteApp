@@ -1,4 +1,3 @@
-using Amazon.CertificateManager;
 using Amazon.CloudWatch;
 using Amazon.ECS;
 using Amazon.KeyManagementService;
@@ -23,7 +22,6 @@ public static class PkiInfrastructureExtensions
     {
         services.AddSingleton<IAmazonKeyManagementService>(_ => new AmazonKeyManagementServiceClient());
         services.AddSingleton<IAmazonSecretsManager>(_ => new AmazonSecretsManagerClient());
-        services.AddSingleton<IAmazonCertificateManager>(_ => new AmazonCertificateManagerClient());
         services.AddSingleton<IAmazonECS>(_ => new AmazonECSClient());
         services.AddSingleton<IAmazonCloudWatch>(_ => new AmazonCloudWatchClient());
 
@@ -31,7 +29,6 @@ public static class PkiInfrastructureExtensions
         services.AddSingleton<IMagasinCertificats, MagasinCertificatsSecretsManager>();
         services.AddSingleton<ISourceInventaire, SourceInventaireSecretsManager>();
         services.AddSingleton<IPublicateurMesures, PublicateurMesuresCloudWatch>();
-        services.AddSingleton<IActionApresRotation, ReimportationAcm>();
         services.AddSingleton<IActionApresRotation, RedeploiementEcs>();
         return services;
     }

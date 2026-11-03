@@ -54,9 +54,14 @@ run "points_de_terminaison_prives" {
   assert {
     condition = toset(keys(aws_vpc_endpoint.interface)) == toset([
       "kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api",
-      "acm", "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
+      "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
     ])
     error_message = "Les points de terminaison d'interface exigés par le plan sont absents."
+  }
+
+  assert {
+    condition     = output.point_de_terminaison_execute_api == aws_vpc_endpoint.interface["execute-api"].id
+    error_message = "Le point de terminaison execute-api est exposé (politique de l'API privée)."
   }
 
   assert {

@@ -56,7 +56,7 @@ output "migrations" {
 }
 
 output "execution" {
-  description = "Exécution (phase 8) : Kafka, initialisation, équilibreur, Lambda PKI, tableau de bord."
+  description = "Exécution (phase 8) : Kafka, initialisation, nom du certificat de l'équilibreur, Lambda PKI, tableau de bord."
   value = {
     serveurs_kafka       = module.kafka.serveurs
     initialisation_kafka = module.kafka.initialisation
@@ -66,4 +66,19 @@ output "execution" {
     cles_intermediaire   = module.pki.cles_intermediaire
     tableau_de_bord      = module.observabilite.tableau_de_bord
   }
+}
+
+output "entree" {
+  description = "Entrée (phase 9) : URL de l'API privée, autorizer, préfixe SSM des clés de plan d'usage (null sans autorizer publié)."
+  value = var.version_autorizer == null ? null : {
+    url                     = module.apigateway[0].url
+    id_api                  = module.apigateway[0].id_api
+    autorizer               = module.apigateway[0].nom_autorizer
+    prefixe_cles_plan_usage = module.apigateway[0].prefixe_cles_plan_usage
+  }
+}
+
+output "artefacts" {
+  description = "Bucket des paquets zip des Lambda (images.yml y publie l'autorizer)."
+  value       = module.artefacts.nom_bucket
 }

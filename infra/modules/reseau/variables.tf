@@ -67,11 +67,12 @@ variable "frontiere_permissions_arn" {
 variable "services_points_de_terminaison" {
   description = "Services AWS joints par un point de terminaison d'interface (suffixe de com.amazonaws.<région>.)."
   type        = set(string)
-  # Phase 8 : acm (réimport du certificat de l'ALB), ecs / ecs-agent / ecs-telemetry (agent ECS des
-  # brokers sur EC2, redéploiements par la Lambda PKI), monitoring (métriques), xray (traces).
+  # Phase 8 : ecs / ecs-agent / ecs-telemetry (agent ECS des brokers sur EC2, redéploiements par la
+  # Lambda PKI), monitoring (métriques), xray (traces). Phase 9 : execute-api porte l'API privée
+  # (ADR 0031) ; acm retiré avec le réimport du certificat de l'équilibreur.
   default = [
     "kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api",
-    "acm", "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
+    "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
   ]
 }
 

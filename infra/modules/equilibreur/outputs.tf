@@ -19,16 +19,11 @@ output "groupe_securite" {
 }
 
 output "nom_hote" {
-  description = "Nom DNS interne de l'API (SAN du certificat)."
+  description = "Nom de l'API dans le certificat public : hôte de l'intégration d'API Gateway."
   value       = local.nom_hote
 }
 
-output "certificat_acm_arn" {
-  description = "ARN du certificat ACM réimporté par la Lambda PKI à chaque rotation."
-  value       = aws_acm_certificate.api.arn
-}
-
 output "arn" {
-  description = "ARN de l'équilibreur (VPC Link en phase 9)."
+  description = "ARN de l'équilibreur : cible de l'intégration d'API Gateway par le VPC Link (integration_target)."
   value       = aws_lb.api.arn
 }

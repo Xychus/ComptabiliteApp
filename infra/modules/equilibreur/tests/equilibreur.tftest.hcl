@@ -25,18 +25,27 @@ mock_provider "aws" {
   mock_resource "aws_acm_certificate" {
     defaults = {
       arn = "arn:aws:acm:ca-central-1:111122223333:certificate/abc"
+      domain_validation_options = [{
+        domain_name           = "api.dev.aws.usinageone.ca"
+        resource_record_name  = "_abc.api.dev.aws.usinageone.ca."
+        resource_record_type  = "CNAME"
+        resource_record_value = "_def.acm-validations.aws."
+      }]
+    }
+  }
+
+  mock_resource "aws_acm_certificate_validation" {
+    defaults = {
+      certificate_arn = "arn:aws:acm:ca-central-1:111122223333:certificate/abc"
     }
   }
 }
 
-mock_provider "tls" {}
-
 variables {
-  prefixe      = "ledger-dev"
-  vpc_id       = "vpc-0123456789abcdef0"
-  cidr_vpc     = "10.20.0.0/16"
-  sous_reseaux = ["subnet-0000000000000001a", "subnet-0000000000000001b", "subnet-0000000000000001c"]
-  zone_interne = { id = "Z0123456789ABC", domaine = "ledger-dev.internal" }
+  prefixe       = "ledger-dev"
+  vpc_id        = "vpc-0123456789abcdef0"
+  sous_reseaux  = ["subnet-0000000000000001a", "subnet-0000000000000001b", "subnet-0000000000000001c"]
+  zone_publique = { id = "Z0123456789ABC", domaine = "dev.aws.usinageone.ca" }
 }
 
 run "https_seulement_tls13_privilegie_interne" {
@@ -57,9 +66,38 @@ run "https_seulement_tls13_privilegie_interne" {
     error_message = "Les cibles sont jointes en HTTPS (Kestrel, PKI interne)."
   }
 
+}
+
+run "certificat_public_valide_par_dns" {
+  command = apply
+
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.https_depuis_vpc.cidr_ipv4 == "10.20.0.0/16"
-    error_message = "Seul le VPC atteint l'équilibreur."
+    condition     = aws_acm_certificate.api.domain_name == "api.dev.aws.usinageone.ca" && aws_acm_certificate.api.validation_method == "DNS"
+    error_message = "Certificat ACM public de api.<zone publique>, validé par DNS (ADR 0031)."
+  }
+
+  assert {
+    condition     = aws_acm_certificate.api.private_key == null && aws_acm_certificate.api.certificate_body == null
+    error_message = "Aucun certificat importé : ACM émet et renouvelle le certificat."
+  }
+
+  assert {
+    condition     = aws_route53_record.validation.zone_id == "Z0123456789ABC" && aws_route53_record.validation.type == "CNAME" && aws_route53_record.validation.name == "_abc.api.dev.aws.usinageone.ca."
+    error_message = "Seul l'enregistrement de validation est publié, dans la zone publique du compte."
+  }
+
+  assert {
+    condition     = aws_lb_listener.https.certificate_arn == aws_acm_certificate_validation.api.certificate_arn
+    error_message = "L'écouteur attend le certificat validé."
+  }
+}
+
+run "aucune_entree_sans_api_gateway" {
+  command = apply
+
+  assert {
+    condition     = length(aws_security_group.equilibreur.ingress) == 0
+    error_message = "Aucune entrée posée par le module : seul le VPC Link d'API Gateway en ouvre une."
   }
 }
 
@@ -77,7 +115,7 @@ run "lectures_vers_la_requete_ecritures_vers_les_commandes" {
   }
 
   assert {
-    condition     = output.nom_hote == "api.ledger-dev.internal"
-    error_message = "L'API est publiée sous api.<domaine>."
+    condition     = output.nom_hote == "api.dev.aws.usinageone.ca"
+    error_message = "L'intégration d'API Gateway vise api.<zone publique>, nom du certificat."
   }
 }

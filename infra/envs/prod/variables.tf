@@ -135,3 +135,40 @@ variable "fenetre_recuperation_secrets_jours" {
   type        = number
   default     = 30
 }
+
+# --- Entrée (phase 9, ADR 0031) --------------------------------------------------------------
+
+variable "domaine_parent" {
+  description = "Domaine public parent : la zone du compte (amorçage) est « <environnement>.<domaine_parent> »."
+  type        = string
+  default     = "aws.usinageone.ca"
+}
+
+variable "version_autorizer" {
+  description = <<-EOT
+    Version SemVer exacte du paquet de l'autorizer publié par images.yml (src/Authorizer/version.txt,
+    ADR 0032). null : paquet non publié, aucune API Gateway (l'équilibreur reste sans entrée).
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "plans_usage" {
+  description = <<-EOT
+    Plans d'usage par catégorie de clients (clientId Keycloak = azp) : débit en lecture (GET, HEAD)
+    et en écriture (PUT, POST), en requêtes par seconde et en rafale ; quota quotidien facultatif.
+  EOT
+  type = map(object({
+    clients         = list(string)
+    lecture         = object({ debit = number, rafale = number })
+    ecriture        = object({ debit = number, rafale = number })
+    quota_quotidien = optional(number)
+  }))
+  default = {
+    exemples = {
+      clients  = ["ledger-exemple-ecriture", "ledger-exemple-lecture"]
+      lecture  = { debit = 50, rafale = 100 }
+      ecriture = { debit = 10, rafale = 20 }
+    }
+  }
+}

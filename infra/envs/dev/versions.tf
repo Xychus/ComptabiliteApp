@@ -6,6 +6,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.70"
     }
+    # Plus utilisé par la configuration (certificat ACM public, ADR 0031) : gardé pour que l'apply
+    # détruise le certificat de démarrage autosigné de l'équilibreur encore présent dans l'état
+    # de dev. À retirer, avec son entrée du verrou, après cet apply.
+    # tflint-ignore: terraform_unused_required_providers
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.1"
+    }
   }
 
   # Configuration partielle (ADR 0011) : bucket, région et clé KMS de l'état du compte sont

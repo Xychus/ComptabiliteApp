@@ -1,8 +1,8 @@
 namespace Ledger.Pki.Application.Rotation;
 
 /// <summary>
-/// Action déclenchée après la promotion d'un certificat (réimport ACM, redéploiement des tâches
-/// ECS qui ne relisent pas leurs secrets…). Chaque action décide, d'après les étiquettes du
+/// Action déclenchée après la promotion d'un certificat (redéploiement des tâches ECS qui ne
+/// relisent pas leurs secrets…). Chaque action décide, d'après les étiquettes du
 /// secret, si elle s'applique. Doit être idempotente.
 /// </summary>
 public interface IActionApresRotation
