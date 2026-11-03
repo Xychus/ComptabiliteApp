@@ -4,9 +4,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Ledger.Authorizer.Tests;
 
-public sealed class ValidateurJetonsTests
+public sealed class ValidateurJetonsTests : IDisposable
 {
     private readonly RealmDeTest _realm = new();
+
+    public void Dispose() => _realm.Dispose();
 
     [Fact]
     public async Task Un_jeton_valide_donne_le_client_et_ses_scopes()
@@ -68,7 +70,8 @@ public sealed class ValidateurJetonsTests
     [Fact]
     public async Task Une_signature_par_une_autre_cle_portant_le_meme_kid_est_refusee()
     {
-        var imposteur = new ECDsaSecurityKey(ECDsa.Create(ECCurve.NamedCurves.nistP256)) { KeyId = _realm.Cle.KeyId };
+        using var cleImposteur = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var imposteur = new ECDsaSecurityKey(cleImposteur) { KeyId = _realm.Cle.KeyId };
         var jeton = _realm.Jeton(signature: new SigningCredentials(imposteur, SecurityAlgorithms.EcdsaSha256));
 
         Assert.Null(await _realm.Validateur().ValiderAsync(jeton, TestContext.Current.CancellationToken));
@@ -107,7 +110,7 @@ public sealed class ValidateurJetonsTests
     [Fact]
     public async Task Une_cle_inconnue_force_une_seule_relecture_du_jwks()
     {
-        var nouveauRealm = new RealmDeTest("cle-2");
+        using var nouveauRealm = new RealmDeTest("cle-2");
         var configuration = new ConfigurationAvecRotation(_realm.Configuration(), nouveauRealm.Configuration());
 
         var valide = await _realm.Validateur(configuration).ValiderAsync(nouveauRealm.Jeton(), TestContext.Current.CancellationToken);
@@ -119,7 +122,8 @@ public sealed class ValidateurJetonsTests
     [Fact]
     public async Task Un_jeton_valide_ne_provoque_aucune_relecture()
     {
-        var configuration = new ConfigurationAvecRotation(_realm.Configuration(), new RealmDeTest("cle-2").Configuration());
+        using var autreRealm = new RealmDeTest("cle-2");
+        var configuration = new ConfigurationAvecRotation(_realm.Configuration(), autreRealm.Configuration());
 
         Assert.NotNull(await _realm.Validateur(configuration).ValiderAsync(_realm.Jeton(), TestContext.Current.CancellationToken));
         Assert.Equal(0, configuration.Relectures);

@@ -11,10 +11,9 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 // vivent autant que l'instance Lambda : configuration OIDC et clés de plan d'usage restent en cache.
 var options = OptionsAutorizer.DepuisEnvironnement(Environment.GetEnvironmentVariable);
 
-#pragma warning disable CA2000 // Possédés par l'instance Lambda pour toute sa durée de vie.
-var canalArriere = new HttpClient(ConfianceRacinePki.CreerGestionnaire(options.CertificatRacinePki) ?? new SocketsHttpHandler()) { Timeout = TimeSpan.FromSeconds(5) };
-var ssm = new AmazonSimpleSystemsManagementClient();
-#pragma warning restore CA2000
+// Libérés à la fin du programme, c'est-à-dire à l'arrêt de l'instance Lambda.
+using var canalArriere = new HttpClient(ConfianceRacinePki.CreerGestionnaire(options.CertificatRacinePki) ?? new SocketsHttpHandler()) { Timeout = TimeSpan.FromSeconds(5) };
+using var ssm = new AmazonSimpleSystemsManagementClient();
 
 var configurationOidc = new ConfigurationManager<OpenIdConnectConfiguration>(
     $"{options.Emetteur.TrimEnd('/')}/.well-known/openid-configuration",

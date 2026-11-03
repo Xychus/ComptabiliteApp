@@ -14,7 +14,7 @@ public sealed class ClesPlanUsageTests
         var cle = await new MagasinClesPlanUsageSsm(ssm, "/ledger-test/plans-usage").TrouverAsync("ledger-exemple", TestContext.Current.CancellationToken);
 
         Assert.Equal("valeur", cle);
-        var requete = Assert.Single(((SsmSimule)(object)ssm).Requetes);
+        var requete = Assert.Single(((SsmSimule)ssm).Requetes);
         Assert.True(requete.WithDecryption);
     }
 
@@ -35,7 +35,7 @@ public sealed class ClesPlanUsageTests
         var ssm = SsmSimule.Creer(new Dictionary<string, string>());
 
         Assert.Null(await new MagasinClesPlanUsageSsm(ssm, "/p").TrouverAsync(clientId, TestContext.Current.CancellationToken));
-        Assert.Empty(((SsmSimule)(object)ssm).Requetes);
+        Assert.Empty(((SsmSimule)ssm).Requetes);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ internal class SsmSimule : DispatchProxy
     public static IAmazonSimpleSystemsManagement Creer(IReadOnlyDictionary<string, string> parametres)
     {
         var proxy = Create<IAmazonSimpleSystemsManagement, SsmSimule>();
-        ((SsmSimule)(object)proxy)._parametres = parametres;
+        ((SsmSimule)proxy)._parametres = parametres;
         return proxy;
     }
 

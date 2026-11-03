@@ -23,7 +23,8 @@ public sealed class GestionnaireJetonTests
         var api = new ServeurSimule((_, _) => new HttpResponseMessage(HttpStatusCode.Unauthorized));
         using var client = Client(api, new ServeurSimule((n, _) => ServeurSimule.Json(Exemples.ReponseJeton($"j{n}"))));
 
-        using var reponse = await client.PutAsync(new Uri("https://api/v1/journal-entries/1"), new StringContent("{\"a\":1}", Encoding.UTF8), TestContext.Current.CancellationToken);
+        using var contenu = new StringContent("{\"a\":1}", Encoding.UTF8);
+        using var reponse = await client.PutAsync(new Uri("https://api/v1/journal-entries/1"), contenu, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, reponse.StatusCode);
         Assert.Equal(["Bearer j1", "Bearer j2"], api.Recues.Select(r => r.Autorisation));
@@ -118,7 +119,8 @@ public sealed class GestionnaireReessai429Tests
         var api = new ServeurSimule((n, _) => n == 1 ? TropDeRequetes() : new HttpResponseMessage(HttpStatusCode.Created));
         using var client = Client(api);
 
-        using var reponse = await client.PostAsync(new Uri("https://api/v1/periods/2030-01/seal"), new StringContent("{\"expectedVersion\":3}"), TestContext.Current.CancellationToken);
+        using var contenu = new StringContent("{\"expectedVersion\":3}");
+        using var reponse = await client.PostAsync(new Uri("https://api/v1/periods/2030-01/seal"), contenu, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Created, reponse.StatusCode);
         Assert.Equal(2, api.Recues.Count);
