@@ -46,47 +46,36 @@ public sealed record OptionsAdministrationPostgres(string Hote, string Base, str
 /// </summary>
 public sealed class AdministrationRolesNpgsql(OptionsAdministrationPostgres options, ISourceIdentifiantsMaitre maitre) : IAdministrationRolesPostgres
 {
+    // Libération synchrone (using) : connexion sans pool, fermée immédiatement ; forme reconnue
+    // par l'analyse statique, contrairement à « await using (x.ConfigureAwait(false)) ».
     public async Task DefinirMotDePasseAsync(string role, string motDePasse, CancellationToken cancellationToken)
     {
         var identifiants = await maitre.LireAsync(cancellationToken).ConfigureAwait(false);
-        var connexion = new NpgsqlConnection(Chaine(identifiants.Utilisateur, identifiants.MotDePasse));
-        await using (connexion.ConfigureAwait(false))
-        {
-            await connexion.OpenAsync(cancellationToken).ConfigureAwait(false);
+        using var connexion = new NpgsqlConnection(Chaine(identifiants.Utilisateur, identifiants.MotDePasse));
+        await connexion.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-            string instruction;
-            var formatage = new NpgsqlCommand("SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', $1::text, $2::text)", connexion);
-            await using (formatage.ConfigureAwait(false))
-            {
-                formatage.Parameters.Add(new NpgsqlParameter { Value = role });
-                formatage.Parameters.Add(new NpgsqlParameter { Value = VerificateurScram.Calculer(motDePasse) });
-                instruction = (string)(await formatage.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
-            }
+        string instruction;
+        using (var formatage = new NpgsqlCommand("SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', $1::text, $2::text)", connexion))
+        {
+            formatage.Parameters.Add(new NpgsqlParameter { Value = role });
+            formatage.Parameters.Add(new NpgsqlParameter { Value = VerificateurScram.Calculer(motDePasse) });
+            instruction = (string)(await formatage.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        }
 
 #pragma warning disable CA2100 // Instruction produite par format() côté serveur : identifiant et littéral cités par PostgreSQL.
-            var modification = new NpgsqlCommand(instruction, connexion);
+        using var modification = new NpgsqlCommand(instruction, connexion);
 #pragma warning restore CA2100
-            await using (modification.ConfigureAwait(false))
-            {
-                await modification.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await modification.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> TesterConnexionAsync(string role, string motDePasse, CancellationToken cancellationToken)
     {
         try
         {
-            var connexion = new NpgsqlConnection(Chaine(role, motDePasse));
-            await using (connexion.ConfigureAwait(false))
-            {
-                await connexion.OpenAsync(cancellationToken).ConfigureAwait(false);
-                var commande = new NpgsqlCommand("SELECT 1", connexion);
-                await using (commande.ConfigureAwait(false))
-                {
-                    return (int)(await commande.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
-                }
-            }
+            using var connexion = new NpgsqlConnection(Chaine(role, motDePasse));
+            await connexion.OpenAsync(cancellationToken).ConfigureAwait(false);
+            using var commande = new NpgsqlCommand("SELECT 1", connexion);
+            return (int)(await commande.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))! == 1;
         }
         catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.InvalidPassword)
         {

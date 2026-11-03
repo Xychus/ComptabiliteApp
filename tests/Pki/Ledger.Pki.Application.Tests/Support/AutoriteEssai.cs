@@ -25,6 +25,7 @@ public sealed class AutoriteEssai : IDisposable
     private readonly ECDsa _cleRacine;
     private readonly DateTimeOffset _maintenant;
 
+    /// <summary>Crée la racine et l'intermédiaire d'essai et charge l'autorité.</summary>
     /// <param name="validiteIntermediaire">Validité de l'intermédiaire (1 an par défaut).</param>
     /// <param name="nomRacine">Nom distinctif de la racine (deux PKI distinctes dans un même test).</param>
     /// <param name="maintenant">Instant de référence ; l'heure réelle pour un test contre un vrai broker.</param>

@@ -38,7 +38,7 @@ public sealed class MagasinCertificatsMemoire : IMagasinCertificats, ISourceInve
         lock (_verrou)
         {
             var s = Secret(secret);
-            var versions = s.Versions.ToDictionary(v => v.Key, v => (IReadOnlyList<string>)[.. v.Value.Etiquettes], StringComparer.Ordinal);
+            var versions = s.Versions.ToDictionary(v => v.Key, IReadOnlyList<string> (v) => [.. v.Value.Etiquettes], StringComparer.Ordinal);
             return Task.FromResult(new DescriptionSecret(secret, s.RotationActivee, versions, new Dictionary<string, string>(s.Etiquettes, StringComparer.Ordinal)));
         }
     }

@@ -11,6 +11,7 @@ public interface IActionApresRotation
 
     bool SApplique(DescriptionSecret description);
 
+    /// <summary>Exécute l'action pour la nouvelle version courante du secret.</summary>
     /// <param name="description">Secret renouvelé (étiquettes : cibles de l'action).</param>
     /// <param name="valeur">Nouvelle valeur courante du secret (JSON propre à son type).</param>
     /// <param name="cancellationToken">Annulation.</param>
