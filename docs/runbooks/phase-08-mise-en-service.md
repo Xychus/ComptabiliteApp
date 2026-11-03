@@ -4,7 +4,10 @@ Ordre des opérations au point d'arrêt. Claude Code n'exécute rien de tout cel
 et le pipeline s'en chargent.
 
 1. **Amorçage** (administrateur) : réappliquer `infra/bootstrap` (frontière de permissions élargie,
-   profils d'instance pour `gha-apply`, refus IAM sauf passage d'un rôle à ECS).
+   profils d'instance pour `gha-apply`, refus IAM sauf passage d'un rôle à ECS, `gha-plan` accepté
+   depuis l'environnement `dev-plan`). Créer l'environnement GitHub **`dev-plan`** : aucune
+   approbation, branches de déploiement limitées à `main`. `infra-apply` y calcule le plan ; la
+   revue de l'environnement `dev` a lieu ensuite, plan sous les yeux (ADR 0021, révision).
 2. **Fusion de la PR** → `infra-apply` : PKI (secrets, rôle), Kafka (instances, volumes, sans
    service), réseau, équilibreur, observabilité. Les services restent absents (versions nulles).
 3. **`images.yml`** (à la demande) : publication de nos images et copie des images tierces.

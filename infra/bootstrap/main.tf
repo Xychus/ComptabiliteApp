@@ -188,7 +188,8 @@ resource "aws_iam_openid_connect_provider" "github" {
   client_id_list = ["sts.amazonaws.com"]
 }
 
-# Plan : jetons des pull requests du dépôt uniquement (aucun environnement GitHub).
+# Plan : jetons des pull requests du dépôt, et de l'environnement GitHub « <env>-plan » (sans
+# approbation) où infra-apply calcule le plan soumis ensuite à la revue de l'environnement protégé.
 resource "aws_iam_role" "plan" {
   name                 = "gha-plan"
   path                 = "/bootstrap/"
@@ -204,7 +205,10 @@ resource "aws_iam_role" "plan" {
       Condition = {
         StringEquals = {
           "${local.emetteur_github}:aud" = "sts.amazonaws.com"
-          "${local.emetteur_github}:sub" = "${local.sujet_github}:pull_request"
+          "${local.emetteur_github}:sub" = [
+            "${local.sujet_github}:pull_request",
+            "${local.sujet_github}:environment:${var.environnement}-plan",
+          ]
         }
       }
     }]
