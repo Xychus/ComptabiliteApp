@@ -1,5 +1,6 @@
 using System.Text;
 using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
 using Ledger.Clients;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -10,31 +11,38 @@ namespace Ledger.Authorizer.Tests;
 
 /// <summary>
 /// Keycloak de production (ADR 0030) : image officielle en mode <c>start</c>, HTTPS par la PKI,
-/// TLS 1.3 seulement, mTLS demandé, realm AWS importé, aucun compte d'administration.
+/// TLS 1.3 seulement, mTLS demandé, realm AWS importé, aucun compte d'administration. Les fichiers
+/// TLS ont le format écrit par la sentinelle (EcrivainCertificatsFichiers) : <c>keystore.pem</c>
+/// (clé puis chaîne), lu à la fois comme certificat et comme clé, et <c>truststore.pem</c> (racine).
 /// </summary>
 public sealed class KeycloakDeProduction : IAsyncLifetime
 {
     public const string Image = "quay.io/keycloak/keycloak:26.8";
 
-    private const string RepertoireTls = "/opt/keycloak/conf/tls";
+    private const string RepertoireTls = "/certificats";
+
+    // Fichiers écrits par la sentinelle (uid 1001) en lecture seule pour leur propriétaire.
+    private const uint UtilisateurSentinelle = 1001;
+    private const UnixFileModes LectureProprietaire = UnixFileModes.UserRead | UnixFileModes.UserWrite;
 
     public KeycloakDeProduction()
     {
         var (chaine, cle) = Pki.Serveur("localhost");
         Conteneur = new ContainerBuilder(Image)
+            // Même utilisateur que la sentinelle, groupe root (image prévue pour un uid arbitraire).
+            .WithCreateParameterModifier(parametres => parametres.User = $"{UtilisateurSentinelle}:0")
             .WithCommand("start", "--import-realm")
             .WithEnvironment("KC_HTTP_ENABLED", "false")
             // Le test joint Keycloak par un port publié aléatoire : émetteur déduit de la requête.
             .WithEnvironment("KC_HOSTNAME_STRICT", "false")
-            .WithEnvironment("KC_HTTPS_CERTIFICATE_FILE", $"{RepertoireTls}/serveur.pem")
-            .WithEnvironment("KC_HTTPS_CERTIFICATE_KEY_FILE", $"{RepertoireTls}/serveur.key")
+            .WithEnvironment("KC_HTTPS_CERTIFICATE_FILE", $"{RepertoireTls}/keystore.pem")
+            .WithEnvironment("KC_HTTPS_CERTIFICATE_KEY_FILE", $"{RepertoireTls}/keystore.pem")
             .WithEnvironment("KC_HTTPS_PROTOCOLS", "TLSv1.3")
             .WithEnvironment("KC_HTTPS_CLIENT_AUTH", "request")
-            .WithEnvironment("KC_HTTPS_TRUST_STORE_FILE", $"{RepertoireTls}/racine.pem")
+            .WithEnvironment("KC_HTTPS_TRUST_STORE_FILE", $"{RepertoireTls}/truststore.pem")
             .WithEnvironment("KC_HEALTH_ENABLED", "true")
-            .WithResourceMapping(Encoding.ASCII.GetBytes(chaine), $"{RepertoireTls}/serveur.pem")
-            .WithResourceMapping(Encoding.ASCII.GetBytes(cle), $"{RepertoireTls}/serveur.key")
-            .WithResourceMapping(Encoding.ASCII.GetBytes(Pki.Racine.ExportCertificatePem()), $"{RepertoireTls}/racine.pem")
+            .WithResourceMapping(Encoding.ASCII.GetBytes(cle.TrimEnd() + "\n" + chaine.TrimEnd() + "\n"), $"{RepertoireTls}/keystore.pem", UtilisateurSentinelle, 0, LectureProprietaire)
+            .WithResourceMapping(Encoding.ASCII.GetBytes(Pki.Racine.ExportCertificatePem().TrimEnd() + "\n"), $"{RepertoireTls}/truststore.pem", UtilisateurSentinelle, 0, LectureProprietaire)
             .WithResourceMapping(
                 new FileInfo(Path.Join(AppContext.BaseDirectory, "infra", "keycloak", "ledger-realm.json")),
                 new FileInfo("/opt/keycloak/data/import/ledger-realm.json"))
