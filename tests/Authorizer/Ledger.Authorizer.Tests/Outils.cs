@@ -15,17 +15,22 @@ internal sealed class HorlogeFixe(DateTimeOffset maintenant) : TimeProvider
 }
 
 /// <summary>Realm de test : une clé ES256 publiée dans un JWKS, et un émetteur de jetons.</summary>
-internal sealed class RealmDeTest
+internal sealed class RealmDeTest : IDisposable
 {
     public const string Emetteur = "https://keycloak.ledger-test.internal/realms/ledger";
     public static readonly DateTimeOffset Maintenant = new(2030, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
     public RealmDeTest(string kid = "cle-1")
     {
-        Cle = new ECDsaSecurityKey(ECDsa.Create(ECCurve.NamedCurves.nistP256)) { KeyId = kid };
+        _ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        Cle = new ECDsaSecurityKey(_ecdsa) { KeyId = kid };
     }
 
+    private readonly ECDsa _ecdsa;
+
     public ECDsaSecurityKey Cle { get; }
+
+    public void Dispose() => _ecdsa.Dispose();
 
     public OpenIdConnectConfiguration Configuration()
     {

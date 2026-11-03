@@ -1,11 +1,13 @@
 namespace Ledger.Authorizer.Tests;
 
-public sealed class AutorizerTests
+public sealed class AutorizerTests : IDisposable
 {
     private const string MethodArn = "arn:aws:execute-api:ca-central-1:123456789012:abcdef1234/v1/PUT/v1/journal-entries/0192";
     private const string Etape = "arn:aws:execute-api:ca-central-1:123456789012:abcdef1234/v1";
 
     private readonly RealmDeTest _realm = new();
+
+    public void Dispose() => _realm.Dispose();
     private readonly MagasinClesEnMemoire _cles = new(new Dictionary<string, string> { ["ledger-exemple"] = "cle-plan-exemple" });
 
     private Autorizer Autorizer() => new(_realm.Validateur(), _cles);

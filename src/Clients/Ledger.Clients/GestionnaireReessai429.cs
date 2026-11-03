@@ -53,11 +53,11 @@ public sealed class GestionnaireReessai429 : DelegatingHandler
 
     internal TimeSpan Delai(HttpResponseMessage reponse, int tentative)
     {
-        var demande = reponse.Headers.RetryAfter switch
+        TimeSpan? demande = reponse.Headers.RetryAfter switch
         {
             { Delta: { } delta } => delta,
             { Date: { } date } => date - (reponse.Headers.Date ?? DateTimeOffset.UtcNow),
-            _ => (TimeSpan?)null,
+            _ => null,
         };
         if (demande is { } retryAfter)
         {
