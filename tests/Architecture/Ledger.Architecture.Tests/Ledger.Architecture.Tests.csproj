@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Authorizer\Ledger.Authorizer\Ledger.Authorizer.csproj" />
+    <ProjectReference Include="..\..\..\src\Clients\Ledger.Clients\Ledger.Clients.csproj" />
     <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Api\Ledger.Command.Api.csproj" />
     <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Application\Ledger.Command.Application.csproj" />
     <ProjectReference Include="..\..\..\src\Command\Ledger.Command.Domain\Ledger.Command.Domain.csproj" />

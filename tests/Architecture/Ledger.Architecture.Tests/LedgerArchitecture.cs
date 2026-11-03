@@ -19,6 +19,7 @@ internal static class LedgerArchitecture
     public static readonly Assembly QueryInfrastructure = typeof(Ledger.Query.Infrastructure.AssemblyMarker).Assembly;
     public static readonly Assembly QueryApi = typeof(Ledger.Query.Api.AssemblyMarker).Assembly;
     public static readonly Assembly Authorizer = typeof(Ledger.Authorizer.AssemblyMarker).Assembly;
+    public static readonly Assembly Clients = typeof(Ledger.Clients.AssemblyMarker).Assembly;
     public static readonly Assembly Migrations = typeof(Ledger.Migrations.AssemblyMarker).Assembly;
     public static readonly Assembly Integrity = typeof(Ledger.Integrity.AssemblyMarker).Assembly;
     public static readonly Assembly PkiApplication = typeof(Ledger.Pki.Application.AssemblyMarker).Assembly;
@@ -41,6 +42,7 @@ internal static class LedgerArchitecture
             QueryInfrastructure,
             QueryApi,
             Authorizer,
+            Clients,
             Migrations,
             Integrity,
             PkiApplication,

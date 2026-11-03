@@ -52,6 +52,12 @@ compte, sous `aws.usinageone.ca`.
 - La zone publique n'est pas signée (DNSSEC) ni journalisée : à revoir en phase 11.
 - Dépasser le débit d'un plan renvoie `429` ; les clients d'exemple réessaient avec un recul
   exponentiel.
+- **`Ledger.Clients`** (sans ASP.NET Core) porte les appels sortants communs : confiance limitée à
+  la racine de la PKI (autorizer, API, clients), jeton par *client credentials* en mTLS mis en
+  cache, renouvellement unique sur `401`, nouvelles tentatives sur `429` (`Retry-After`, sinon
+  recul exponentiel à gigue complète, toutes méthodes : API Gateway refuse avant l'intégration).
+  Ce n'est pas un composant release-please : ses changements ne changent la version d'aucun
+  composant.
 
 ## Options écartées
 

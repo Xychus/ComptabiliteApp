@@ -15,6 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Clients\Ledger.Clients\Ledger.Clients.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Ledger.Authorizer.Tests" />
   </ItemGroup>
 

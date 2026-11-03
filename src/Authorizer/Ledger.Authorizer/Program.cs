@@ -3,6 +3,7 @@ using Amazon.Lambda.RuntimeSupport;
 using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SimpleSystemsManagement;
 using Ledger.Authorizer;
+using Ledger.Clients;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
@@ -11,7 +12,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 var options = OptionsAutorizer.DepuisEnvironnement(Environment.GetEnvironmentVariable);
 
 #pragma warning disable CA2000 // Possédés par l'instance Lambda pour toute sa durée de vie.
-var canalArriere = new HttpClient(ConfianceRacinePki.CreerGestionnaire(options.CertificatRacinePki)) { Timeout = TimeSpan.FromSeconds(5) };
+var canalArriere = new HttpClient(ConfianceRacinePki.CreerGestionnaire(options.CertificatRacinePki) ?? new SocketsHttpHandler()) { Timeout = TimeSpan.FromSeconds(5) };
 var ssm = new AmazonSimpleSystemsManagementClient();
 #pragma warning restore CA2000
 

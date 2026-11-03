@@ -19,6 +19,12 @@ public sealed class OptionsTlsInterne
     public string? Cle { get; set; }
 
     public int PortHttps { get; set; } = 8443;
+
+    /// <summary>
+    /// Racine de la PKI de l'environnement (champ <c>racine</c> du secret) : seule autorité admise
+    /// pour les appels sortants vers un service de la PKI, comme Keycloak (ADR 0030).
+    /// </summary>
+    public string? Racine { get; set; }
 }
 
 /// <summary>

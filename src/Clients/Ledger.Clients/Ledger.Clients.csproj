@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Appels sortants vers le grand livre et les services de la PKI (ADR 0030, 0031) : sans ASP.NET Core,
+    utilisable par la Lambda de l'autorizer (runtime géré) comme par toute application interne.
+  -->
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ledger.Clients.Tests" />
+  </ItemGroup>
+
+</Project>

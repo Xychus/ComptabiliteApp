@@ -2,11 +2,11 @@ using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Ledger.Authorizer.Tests;
+namespace Ledger.Clients.Tests;
 
 public sealed class ConfianceRacinePkiTests
 {
-    private static readonly DateTimeOffset Debut = DateTimeOffset.UtcNow.AddDays(-1);
+    internal static readonly DateTimeOffset Debut = DateTimeOffset.UtcNow.AddDays(-1);
 
     [Fact]
     public void Une_chaine_jusqu_a_la_racine_de_la_pki_est_acceptee()
@@ -49,14 +49,14 @@ public sealed class ConfianceRacinePkiTests
     {
         var (racine, _, _) = Pki("x");
 
-        using var sansRacine = (SocketsHttpHandler)ConfianceRacinePki.CreerGestionnaire(null);
-        using var avecRacine = (SocketsHttpHandler)ConfianceRacinePki.CreerGestionnaire(racine.ExportCertificatePem());
+        using var avecRacine = ConfianceRacinePki.CreerGestionnaire(racine.ExportCertificatePem());
 
-        Assert.Null(sansRacine.SslOptions.RemoteCertificateValidationCallback);
-        Assert.NotNull(avecRacine.SslOptions.RemoteCertificateValidationCallback);
+        Assert.Null(ConfianceRacinePki.CreerGestionnaire(null));
+        Assert.Null(ConfianceRacinePki.CreerGestionnaire(" "));
+        Assert.NotNull(avecRacine?.SslOptions.RemoteCertificateValidationCallback);
     }
 
-    private static (X509Certificate2 Racine, X509Certificate2 Intermediaire, X509Certificate2 Serveur) Pki(string nomDns)
+    internal static (X509Certificate2 Racine, X509Certificate2 Intermediaire, X509Certificate2 Serveur) Pki(string nomDns)
     {
         using var cleRacine = ECDsa.Create(ECCurve.NamedCurves.nistP384);
         using var cleIntermediaire = ECDsa.Create(ECCurve.NamedCurves.nistP384);
