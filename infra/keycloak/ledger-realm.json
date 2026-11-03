@@ -1,0 +1,80 @@
+{
+  "realm": "ledger",
+  "displayName": "Grand livre",
+  "enabled": true,
+  "sslRequired": "all",
+  "accessTokenLifespan": 300,
+  "defaultSignatureAlgorithm": "ES256",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "clientScopes": [
+    {
+      "name": "ledger:write",
+      "description": "Écriture dans le grand livre (API de commandes).",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [
+        {
+          "name": "audience ledger-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "ledger-api", "access.token.claim": "true", "id.token.claim": "false" }
+        }
+      ]
+    },
+    {
+      "name": "ledger:read",
+      "description": "Lecture du grand livre (API de requête).",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [
+        {
+          "name": "audience ledger-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": { "included.custom.audience": "ledger-api", "access.token.claim": "true", "id.token.claim": "false" }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "ledger-exemple-ecriture",
+      "name": "Client d'exemple : écriture et lecture",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-x509",
+      "attributes": {
+        "x509.subjectdn": "CN=ledger-exemple-ecriture",
+        "x509.allow.regex.pattern.comparison": "false"
+      },
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["ledger:write", "ledger:read"],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "ledger-exemple-lecture",
+      "name": "Client d'exemple : lecture seule",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-x509",
+      "attributes": {
+        "x509.subjectdn": "CN=ledger-exemple-lecture",
+        "x509.allow.regex.pattern.comparison": "false"
+      },
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["ledger:read"],
+      "optionalClientScopes": []
+    }
+  ]
+}

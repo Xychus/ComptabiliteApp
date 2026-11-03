@@ -60,6 +60,23 @@ Si le compte possède déjà un fournisseur OIDC GitHub, l'importer avant l'appl
 
 Recommencer pour le compte de production avec `environnement = "prod"`.
 
+### Délégation de la zone publique (phase 9, ADR 0031)
+
+L'amorçage crée la zone `<environnement>.aws.usinageone.ca` (variable `domaine_parent`), qui ne
+porte que la validation des certificats ACM publics. Après l'apply, déléguer la zone dans son
+parent :
+
+1. Lire les serveurs de noms : `terraform output zone_publique` (champ `serveurs_de_noms`).
+2. Dans la zone parente `aws.usinageone.ca` (ou `usinageone.ca` si `aws` n'est pas une zone
+   distincte), créer un enregistrement **NS** nommé `dev` (ou `prod`) avec ces quatre valeurs.
+   Si le parent est dans Route 53 : `aws route53 change-resource-record-sets` avec un `UPSERT`
+   de type `NS`.
+3. Vérifier : `dig NS dev.aws.usinageone.ca +short` renvoie les quatre serveurs `awsdns`.
+
+La zone est protégée (`prevent_destroy`) : la recréer changerait ses serveurs de noms et
+obligerait à refaire la délégation. Pas de DNSSEC pour l'instant, donc pas d'enregistrement DS
+(phase 11).
+
 ## Côté GitHub (une fois)
 
 1. **Variables du dépôt** (*Settings → Secrets and variables → Actions → Variables*) — des

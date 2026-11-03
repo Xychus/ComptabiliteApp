@@ -431,3 +431,20 @@ resource "aws_iam_policy" "frontiere" {
     ]
   })
 }
+
+# --- Zone DNS publique du compte (ADR 0031) ---------------------------------------------------
+# Porte seulement les enregistrements de validation des certificats ACM publics (équilibreur
+# interne derrière API Gateway privée) : aucun service n'y est publié. Créée ici plutôt que dans
+# envs/<env> pour que ses serveurs de noms, délégués à la main dans le domaine parent, survivent à
+# la destruction de dev (ADR 0027).
+resource "aws_route53_zone" "publique" {
+  #checkov:skip=CKV2_AWS_38:DNSSEC exige une clé KMS asymétrique en us-east-1 et un DS chez le parent : à revoir en phase 11 (ADR 0031).
+  #checkov:skip=CKV2_AWS_39:Journalisation des requêtes DNS publiques : à revoir en phase 11 avec la journalisation des requêtes DNS du VPC (ADR 0031).
+  name          = "${var.environnement}.${var.domaine_parent}"
+  comment       = "Validation des certificats ACM publics de ledger-${var.environnement}"
+  force_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}

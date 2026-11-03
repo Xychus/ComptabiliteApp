@@ -95,5 +95,6 @@ jobs:
           done <<'LISTE'
           kafka docker.io/apache/kafka 4.3.2
           debezium-connect quay.io/debezium/connect 3.7.0.Final
+          keycloak quay.io/keycloak/keycloak 26.8.1
           aws-otel-collector public.ecr.aws/aws-observability/aws-otel-collector v0.50.0
           LISTE

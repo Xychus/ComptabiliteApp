@@ -30,7 +30,7 @@ public sealed class ClientGrandLivre : IDisposable
         // Les gestionnaires appartiennent aux HttpClient (disposeHandler par défaut), libérés par Dispose.
 #pragma warning disable CA2000
         var versKeycloak = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
-        versKeycloak.SslOptions.ClientCertificates = [options.CertificatClient];
+        versKeycloak.SslOptions.ClientCertificateContext = options.IdentiteClient.Contexte();
         if (options.RacinePki is { } racine)
         {
             ConfianceRacinePki.Configurer(versKeycloak, racine);

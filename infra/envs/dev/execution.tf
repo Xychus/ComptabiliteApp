@@ -70,12 +70,14 @@ module "pki" {
       "projections-worker" = { nom_commun = "projections-worker", usage = "client", services = ["projections-worker"] }
       "command-api"        = { nom_commun = "command-api", usage = "serveur", noms_dns = ["command-api.${local.domaine_interne}"], services = ["command-api"] }
       "query-api"          = { nom_commun = "query-api", usage = "serveur", noms_dns = ["query-api.${local.domaine_interne}"], services = ["query-api"] }
+      "keycloak"           = { nom_commun = "keycloak", usage = "serveur", noms_dns = [module.keycloak.nom_hote], services = ["keycloak"] }
       "api"                = { nom_commun = "api", usage = "serveur", noms_dns = [module.equilibreur.nom_hote], certificat_acm_arn = module.equilibreur.certificat_acm_arn }
     },
   )
 
   mots_de_passe_postgres = {
     debezium = { role = "debezium", services = ["debezium"] }
+    keycloak = { role = "keycloak", services = ["keycloak"] }
   }
 
   aurora = {
@@ -152,6 +154,37 @@ module "debezium" {
   frontiere_permissions_arn             = local.arn_frontiere
 }
 
+module "keycloak" {
+  source = "../../modules/keycloak"
+
+  prefixe                               = local.prefixe
+  region                                = var.region
+  compte_aws                            = var.compte_aws
+  vpc_id                                = module.reseau.vpc_id
+  cidr_vpc                              = module.reseau.cidr_vpc
+  sous_reseaux                          = module.reseau.sous_reseaux_applications
+  arn_grappe                            = module.ecs.arn_grappe
+  domaine_interne                       = local.domaine_interne
+  groupe_securite_points_de_terminaison = module.reseau.groupe_securite_points_de_terminaison
+  depot_keycloak_url                    = module.ecr.urls["keycloak"]
+  depot_keycloak_arn                    = module.ecr.arns["keycloak"]
+  version_keycloak                      = var.versions_images.keycloak
+  depot_sentinelle_url                  = module.ecr.urls["pki-sentinelle"]
+  depot_sentinelle_arn                  = module.ecr.arns["pki-sentinelle"]
+  version_sentinelle                    = var.versions_images.pki
+  serveurs_kafka                        = module.kafka.serveurs
+  secret_certificat                     = module.pki.secrets_certificats["keycloak"]
+  secret_mot_de_passe                   = module.pki.secrets_mots_de_passe["keycloak"]
+  hote_aurora                           = module.aurora.point_de_terminaison_redacteur
+  nom_base                              = module.aurora.nom_base
+  groupe_securite_aurora                = module.aurora.groupe_securite
+  certificat_racine_rds_pem             = file("${path.module}/../../rds/${var.region}-bundle.pem")
+  nombre_taches                         = var.services.taches_keycloak
+  cle_kms_secrets_arn                   = module.kms.arns["secrets"]
+  cle_kms_journaux_arn                  = module.kms.arns["logs"]
+  frontiere_permissions_arn             = local.arn_frontiere
+}
+
 module "equilibreur" {
   #checkov:skip=CKV_AWS_150:Dev jetable (ADR 0027) : détruit et recréé par le pipeline ; la prod garde la protection contre la suppression.
   source = "../../modules/equilibreur"
@@ -221,7 +254,7 @@ module "command_api" {
 
   environnement = merge(local.postgres_iam, {
     ConnectionStrings__Ledger         = local.chaine_connexion["ledger_app"]
-    Ledger__Authentication__Authority = var.url_realm_keycloak
+    Ledger__Authentication__Authority = module.keycloak.url_realm
     Ledger__Tls__PortHttps            = "8443"
   })
   secrets = {
@@ -229,8 +262,11 @@ module "command_api" {
     Ledger__Tls__Cle    = "${local.secret_tls["command-api"]}:cle::"
     Ledger__Tls__Racine = "${local.secret_tls["command-api"]}:racine::"
   }
-  arn_secrets_lus         = [local.secret_tls["command-api"]]
-  sorties                 = { aurora = { groupe_securite = module.aurora.groupe_securite, port = 5432 } }
+  arn_secrets_lus = [local.secret_tls["command-api"]]
+  sorties = {
+    aurora   = { groupe_securite = module.aurora.groupe_securite, port = 5432 }
+    keycloak = { groupe_securite = module.keycloak.groupe_securite, port = 8443 }
+  }
   declarations_role_tache = local.connexion_iam["ledger_app"]
 
   cle_kms_secrets_arn       = module.kms.arns["secrets"]
@@ -268,7 +304,7 @@ module "query_api" {
 
   environnement = merge(local.postgres_iam, {
     ConnectionStrings__Ledger         = local.chaine_connexion["ledger_query"]
-    Ledger__Authentication__Authority = var.url_realm_keycloak
+    Ledger__Authentication__Authority = module.keycloak.url_realm
     Ledger__Tls__PortHttps            = "8443"
   })
   secrets = {
@@ -276,8 +312,11 @@ module "query_api" {
     Ledger__Tls__Cle    = "${local.secret_tls["query-api"]}:cle::"
     Ledger__Tls__Racine = "${local.secret_tls["query-api"]}:racine::"
   }
-  arn_secrets_lus         = [local.secret_tls["query-api"]]
-  sorties                 = { aurora = { groupe_securite = module.aurora.groupe_securite, port = 5432 } }
+  arn_secrets_lus = [local.secret_tls["query-api"]]
+  sorties = {
+    aurora   = { groupe_securite = module.aurora.groupe_securite, port = 5432 }
+    keycloak = { groupe_securite = module.keycloak.groupe_securite, port = 8443 }
+  }
   declarations_role_tache = local.connexion_iam["ledger_query"]
 
   cle_kms_secrets_arn       = module.kms.arns["secrets"]

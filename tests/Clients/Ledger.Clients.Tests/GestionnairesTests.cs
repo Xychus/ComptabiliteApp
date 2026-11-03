@@ -170,7 +170,7 @@ public sealed class ClientGrandLivreTests
         {
             PointTerminaisonJetons = options.PointTerminaisonJetons,
             ClientId = options.ClientId,
-            CertificatClient = options.CertificatClient,
+            IdentiteClient = options.IdentiteClient,
             RacinePki = racine,
             AdresseApi = options.AdresseApi,
         });

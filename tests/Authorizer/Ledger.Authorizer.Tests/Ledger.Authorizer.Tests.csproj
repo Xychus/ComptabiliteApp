@@ -2,10 +2,16 @@
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.SimpleSystemsManagement" />
+    <PackageReference Include="Testcontainers" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Authorizer\Ledger.Authorizer\Ledger.Authorizer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Realm réellement déployé en AWS (ADR 0030), éprouvé contre l'image officielle de Keycloak. -->
+    <None Include="..\..\..\infra\keycloak\ledger-realm.json" Link="infra\keycloak\ledger-realm.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

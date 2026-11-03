@@ -19,8 +19,19 @@ public sealed class SchemaTests(PostgresFixture database)
     {
         Assert.True(database.FirstRun.Successful, database.FirstRun.Error?.ToString());
         Assert.Equal(
-            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections", "0008_publication_et_purge_outbox", "0009_connexion_iam"],
+            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections", "0008_publication_et_purge_outbox", "0009_connexion_iam", "0010_keycloak"],
             database.FirstRun.ExecutedScripts.Select(name => name.Split('.')[^2]));
+    }
+
+    [Fact]
+    public async Task Keycloak_n_a_d_usage_que_sur_son_schema_et_ne_se_connecte_pas_en_local()
+    {
+        // ADR 0030 : base de Keycloak isolée par schéma et rôle ; LOGIN donné par la rotation en AWS.
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT rolcanlogin FROM pg_roles WHERE rolname = 'keycloak'"));
+        Assert.True(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('keycloak', 'keycloak', 'USAGE,CREATE')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('keycloak', 'ledger', 'USAGE')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('keycloak', 'projections', 'USAGE')"));
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT has_schema_privilege('ledger_app', 'keycloak', 'USAGE')"));
     }
 
     [Fact]

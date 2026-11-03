@@ -13,7 +13,7 @@ locals {
   # Services du dépôt, puis copies des images officielles tierces (ADR 0028, images.yml).
   depots_ecr = [
     "command-api", "query-api", "projections-worker", "migrations", "pki-lambda", "pki-sentinelle",
-    "kafka", "debezium-connect", "aws-otel-collector",
+    "kafka", "debezium-connect", "keycloak", "aws-otel-collector",
   ]
 }
 

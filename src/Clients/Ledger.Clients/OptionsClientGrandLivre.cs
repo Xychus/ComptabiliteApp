@@ -11,8 +11,8 @@ public sealed class OptionsClientGrandLivre
     /// <summary>Identifiant du client dans le realm ; il devient l'<c>actor</c> des événements.</summary>
     public required string ClientId { get; init; }
 
-    /// <summary>Certificat <c>client</c> de la PKI, avec sa clé privée : authentifie le client auprès de Keycloak (mTLS).</summary>
-    public required X509Certificate2 CertificatClient { get; init; }
+    /// <summary>Certificat <c>client</c> de la PKI et ses intermédiaires : authentifie le client auprès de Keycloak (mTLS).</summary>
+    public required IdentiteClientPki IdentiteClient { get; init; }
 
     /// <summary>Racine de la PKI de l'environnement ; <c>null</c> : magasin du système (local).</summary>
     public X509Certificate2? RacinePki { get; init; }

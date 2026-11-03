@@ -60,7 +60,7 @@ variable "version_image_migrations" {
 variable "versions_images" {
   description = <<-EOT
     Versions exactes des images publiées par images.yml (ADR 0028). null : composant sans service
-    (aucune image publiée). pki : Lambda et sentinelle ; kafka, debezium, collecteur : copies
+    (aucune image publiée). pki : Lambda et sentinelle ; kafka, debezium, keycloak, collecteur : copies
     des images officielles tierces (étiquette de l'éditeur).
   EOT
   type = object({
@@ -71,6 +71,7 @@ variable "versions_images" {
     migrations  = optional(string)
     kafka       = optional(string, "4.3.2")
     debezium    = optional(string, "3.7.0.Final")
+    keycloak    = optional(string, "26.8.1")
     collecteur  = optional(string, "v0.50.0")
   })
   default = {}
@@ -114,18 +115,14 @@ variable "services" {
     taches_minimum = number
     taches_maximum = number
     taches_worker  = number
+    # Keycloak (ADR 0030) : grappe par jdbc-ping au-delà d'une tâche.
+    taches_keycloak = optional(number, 1)
   })
   default = {
     taches_minimum = 1
     taches_maximum = 2
     taches_worker  = 1
   }
-}
-
-variable "url_realm_keycloak" {
-  description = "URL du realm Keycloak émetteur des jetons (P6, phase 9)."
-  type        = string
-  default     = "https://keycloak.ledger-dev.internal/realms/ledger"
 }
 
 variable "protection_suppression" {
