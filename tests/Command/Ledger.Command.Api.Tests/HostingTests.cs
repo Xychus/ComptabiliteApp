@@ -3,8 +3,10 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Ledger.Command.Api.Composition;
 using Ledger.Command.Api.Http;
+using Ledger.Command.Api.Security;
 using Ledger.Command.Api.Tests.Support;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -14,11 +16,18 @@ namespace Ledger.Command.Api.Tests;
 public sealed class HostingTests
 {
     [Fact]
-    public async Task Sans_autorite_Keycloak_l_application_ne_demarre_pas()
+    public void Sans_autorite_Keycloak_l_application_ne_demarre_pas()
     {
-        await using var factory = new LedgerApiFactory(settings: new Dictionary<string, string?> { ["Ledger:Authentication:Authority"] = string.Empty });
+        // Validateur exécuté par l'hôte au démarrage (ValidateOnStart), appelé directement : un hôte
+        // qui échoue au démarrage sous WebApplicationFactory lève tantôt l'erreur de validation, tantôt
+        // ObjectDisposedException (course entre le fil de l'application et DeferredHost).
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Ledger:Authentication:Authority"] = string.Empty })
+            .Build();
+        using var services = new ServiceCollection().AddLedgerAuthentication(configuration).BuildServiceProvider();
 
-        Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        var error = Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<IStartupValidator>().Validate());
+        Assert.Contains(nameof(LedgerAuthenticationOptions.Authority), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
