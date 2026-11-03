@@ -68,8 +68,11 @@ run "roles_du_pipeline_cloisonnes" {
   command = apply
 
   assert {
-    condition     = jsondecode(aws_iam_role.plan.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:Xychus/ComptabiliteApp:pull_request"
-    error_message = "Le rôle de plan ne doit être assumable que depuis les pull requests du dépôt."
+    condition = toset(jsondecode(aws_iam_role.plan.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]) == toset([
+      "repo:Xychus/ComptabiliteApp:pull_request",
+      "repo:Xychus/ComptabiliteApp:environment:dev-plan",
+    ])
+    error_message = "Le rôle de plan ne doit être assumable que depuis les pull requests du dépôt et l'environnement « dev-plan »."
   }
 
   assert {
@@ -159,8 +162,11 @@ run "sujets_oidc_immuables" {
   }
 
   assert {
-    condition     = jsondecode(aws_iam_role.plan.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:Xychus@153566096/ComptabiliteApp@1422798619:pull_request"
-    error_message = "Le rôle de plan doit accepter le sujet immuable des pull requests."
+    condition = toset(jsondecode(aws_iam_role.plan.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]) == toset([
+      "repo:Xychus@153566096/ComptabiliteApp@1422798619:pull_request",
+      "repo:Xychus@153566096/ComptabiliteApp@1422798619:environment:dev-plan",
+    ])
+    error_message = "Le rôle de plan accepte les pull requests et l'environnement sans approbation « dev-plan », rien d'autre."
   }
 
   assert {

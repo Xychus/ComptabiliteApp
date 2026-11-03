@@ -66,3 +66,18 @@ l'état Terraform. Un rôle doté d'`AdministratorAccess` ne satisfait pas ces e
   et fragile ; la frontière ne porte que sur IAM, seul vecteur d'escalade.
 - **Clés d'accès dans les secrets GitHub** : identifiants durables, rotation à gérer.
 - **Un seul rôle pour plan et apply** : une PR non relue obtiendrait des droits d'écriture.
+
+## Révision (2026-11-02, phase 8) — revue après le plan
+
+Avec un seul job dans l'environnement protégé, la revue de `infra-apply` avait lieu **avant** le
+plan : l'approbateur validait sans voir les changements. `infra-apply` est désormais en deux jobs :
+
+1. **plan**, dans l'environnement GitHub `<env>-plan` (sans approbation, restreint à `main`), avec
+   `gha-plan` (lecture seule, verrous de l'état) ; le plan complet est publié dans le récapitulatif
+   du run et conservé un jour en artefact (il peut contenir des valeurs sensibles) ;
+2. **apply**, dans l'environnement protégé `<env>` (revue obligatoire, désormais après le plan),
+   avec `gha-apply`, qui applique exactement le plan revu ; Terraform refuse un plan périmé.
+
+`gha-plan` accepte donc deux sujets : `pull_request` et `environment:<env>-plan`. Le rôle reste en
+lecture seule : obtenir un jeton de `<env>-plan` ne donne aucun droit d'écriture.
+

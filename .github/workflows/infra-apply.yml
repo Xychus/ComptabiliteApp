@@ -1,8 +1,12 @@
 name: infra-apply
 
-# Application de l'infrastructure en dev (phase 7) : init → plan -out → apply de ce plan exact.
-# Rôle gha-apply par OIDC, jeton émis dans l'environnement GitHub « dev » (sujet
-# repo:<dépôt>:environment:dev, seul accepté par gha-apply, ADR 0021). Prod : phase 10.
+# Application de l'infrastructure en dev : plan, revue, puis apply de ce plan exact (ADR 0021).
+#   1. plan  : environnement GitHub « dev-plan » (sans approbation), rôle gha-plan en lecture
+#              seule ; le plan complet est publié dans le récapitulatif et conservé en artefact ;
+#   2. apply : environnement GitHub « dev » (revue obligatoire), rôle gha-apply ; la revue se fait
+#              donc après lecture du plan, et seul ce plan est appliqué (Terraform refuse un plan
+#              devenu périmé si l'état a changé entre-temps).
+# Prod : phase 10.
 on:
   push:
     branches: [main]
@@ -25,22 +29,25 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugins
+  REPERTOIRE: infra/envs/dev
 
 jobs:
-  apply:
-    name: Apply (dev)
+  plan:
+    name: Plan (dev)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    environment: dev
+    timeout-minutes: 30
+    # Environnement sans approbation : son jeton (sujet environment:dev-plan) n'ouvre que gha-plan.
+    environment: dev-plan
     permissions:
       contents: read
       id-token: write
     env:
       COMPTE_AWS: ${{ vars.AWS_ACCOUNT_ID_DEV }}
       REGION_AWS: ${{ vars.AWS_REGION || 'ca-central-1' }}
-      REPERTOIRE: infra/envs/dev
+    outputs:
+      changements: ${{ steps.plan.outputs.changements }}
     steps:
-      # Contrairement au plan des pull requests, un apply sans compte est une erreur.
+      # Contrairement au plan des pull requests, un plan sans compte est une erreur.
       - name: Compte amorcé
         run: |
           if [ -z "$COMPTE_AWS" ]; then
@@ -61,8 +68,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: arn:aws:iam::${{ env.COMPTE_AWS }}:role/bootstrap/gha-apply
-          role-session-name: gha-apply-${{ github.run_id }}
+          role-to-assume: arn:aws:iam::${{ env.COMPTE_AWS }}:role/bootstrap/gha-plan
+          role-session-name: gha-plan-${{ github.run_id }}
           aws-region: ${{ env.REGION_AWS }}
 
       # Mêmes paramètres de backend qu'infra-ci.yml (noms reconstruits depuis le numéro de compte).
@@ -90,19 +97,87 @@ jobs:
             exit 1
           fi
           echo "changements=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      # Le plan complet est lu par la personne qui approuve l'apply (récapitulatif de ce run).
+      - name: Récapitulatif du plan
+        run: |
+          terraform -chdir="$REPERTOIRE" show -no-color plan.tfplan > plan.txt
+          resume="$(grep -E '^(Plan:|No changes\.)' plan.txt || echo '(aucun résumé)')"
           {
             echo "### Terraform plan — \`dev\`"
             echo
+            echo "**$resume**"
+            echo
+            echo "<details><summary>Plan complet</summary>"
+            echo
             echo '```'
-            terraform -chdir="$REPERTOIRE" show -no-color plan.tfplan | grep -E '^(Plan:|No changes\.)' || echo "(aucun résumé)"
+            # Limite du récapitulatif GitHub (1 Mio) : fin du plan conservée, plan complet en artefact.
+            tail -c 900000 plan.txt
             echo '```'
+            echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Applique exactement le plan enregistré : aucune variable ni rafraîchissement supplémentaire.
-      - name: Apply
+      # Le plan peut contenir des valeurs sensibles (ex. clé du certificat de démarrage de
+      # l'équilibreur) : conservation d'un jour seulement, le temps de la revue.
+      - uses: actions/upload-artifact@v7
         if: steps.plan.outputs.changements == 'true'
-        run: terraform -chdir="$REPERTOIRE" apply -no-color -lock-timeout=5m plan.tfplan
+        with:
+          name: plan-dev
+          path: |
+            ${{ env.REPERTOIRE }}/plan.tfplan
+            ${{ env.REPERTOIRE }}/plan.txt
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Aucun changement
         if: steps.plan.outputs.changements != 'true'
         run: echo "::notice::Aucun changement à appliquer en dev."
+
+  apply:
+    name: Apply (dev)
+    needs: plan
+    if: needs.plan.outputs.changements == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Revue obligatoire de l'environnement protégé : elle a lieu ici, après le plan.
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      COMPTE_AWS: ${{ vars.AWS_ACCOUNT_ID_DEV }}
+      REGION_AWS: ${{ vars.AWS_REGION || 'ca-central-1' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version de Terraform
+        id: version
+        run: echo "terraform=$(cat infra/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ steps.version.outputs.terraform }}
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ env.COMPTE_AWS }}:role/bootstrap/gha-apply
+          role-session-name: gha-apply-${{ github.run_id }}
+          aws-region: ${{ env.REGION_AWS }}
+
+      - name: Init
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          terraform -chdir="$REPERTOIRE" init -lockfile=readonly -no-color \
+            -backend-config="bucket=ledger-tfstate-${COMPTE_AWS}-${REGION_AWS}" \
+            -backend-config="region=${REGION_AWS}" \
+            -backend-config="kms_key_id=arn:aws:kms:${REGION_AWS}:${COMPTE_AWS}:alias/ledger-tfstate"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: plan-dev
+          path: ${{ env.REPERTOIRE }}
+
+      # Applique exactement le plan revu : aucune variable ni rafraîchissement supplémentaire.
+      - name: Apply
+        run: terraform -chdir="$REPERTOIRE" apply -no-color -lock-timeout=5m plan.tfplan
