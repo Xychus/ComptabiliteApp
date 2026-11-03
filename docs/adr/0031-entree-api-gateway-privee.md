@@ -59,6 +59,12 @@ compte, sous `aws.usinageone.ca`.
   Ce n'est pas un composant release-please : ses changements ne changent la version d'aucun
   composant.
 
+- Mise en œuvre (phase 9c) : paquet zip de l'autorizer publié dans un bucket d'artefacts,
+  journalisation d'API Gateway par un rôle de compte, TLS 1.3 seul en mode d'accès strict :
+  [ADR 0032](0032-paquets-lambda-et-journalisation-api-gateway.md). Une méthode par verbe
+  (`GET`, `HEAD`, `PUT`, `POST`) sur `/{proxy+}` porte le débit par méthode des plans d'usage ;
+  l'étape s'appelle `api` (URL `…/api/v1/…`). Point d'arrêt : `docs/runbooks/phase-09-point-d-arret.md`.
+
 ## Options écartées
 
 - **`insecureSkipVerification`** avec le certificat PKI : serveur non authentifié par API Gateway.
