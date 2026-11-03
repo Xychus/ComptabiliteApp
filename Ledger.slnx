@@ -12,6 +12,18 @@
   <Folder Name="/src/Contracts/">
     <Project Path="src/Contracts/Ledger.Contracts/Ledger.Contracts.csproj" />
   </Folder>
+  <Folder Name="/src/Hebergement/">
+    <Project Path="src/Hebergement/Ledger.Hebergement/Ledger.Hebergement.csproj" />
+  </Folder>
+  <Folder Name="/src/Pki/">
+    <Project Path="src/Pki/Ledger.Pki.Application/Ledger.Pki.Application.csproj" />
+    <Project Path="src/Pki/Ledger.Pki.Infrastructure/Ledger.Pki.Infrastructure.csproj" />
+    <Project Path="src/Pki/Ledger.Pki.Lambda/Ledger.Pki.Lambda.csproj" />
+    <Project Path="src/Pki/Ledger.Pki.Sentinelle/Ledger.Pki.Sentinelle.csproj" />
+  </Folder>
+  <Folder Name="/src/Postgres/">
+    <Project Path="src/Postgres/Ledger.Postgres.Infrastructure/Ledger.Postgres.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Projections/">
     <Project Path="src/Projections/Ledger.Projections.Application/Ledger.Projections.Application.csproj" />
     <Project Path="src/Projections/Ledger.Projections.Infrastructure/Ledger.Projections.Infrastructure.csproj" />
@@ -47,6 +59,18 @@
   </Folder>
   <Folder Name="/tests/EndToEnd/">
     <Project Path="tests/EndToEnd/Ledger.EndToEnd.Tests/Ledger.EndToEnd.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Hebergement/">
+    <Project Path="tests/Hebergement/Ledger.Hebergement.Tests/Ledger.Hebergement.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Pki/">
+    <Project Path="tests/Pki/Ledger.Pki.Application.Tests/Ledger.Pki.Application.Tests.csproj" />
+    <Project Path="tests/Pki/Ledger.Pki.Infrastructure.Tests/Ledger.Pki.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Pki/Ledger.Pki.Lambda.Tests/Ledger.Pki.Lambda.Tests.csproj" />
+    <Project Path="tests/Pki/Ledger.Pki.Sentinelle.Tests/Ledger.Pki.Sentinelle.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Postgres/">
+    <Project Path="tests/Postgres/Ledger.Postgres.Infrastructure.Tests/Ledger.Postgres.Infrastructure.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Projections/">
     <Project Path="tests/Projections/Ledger.Projections.Application.Tests/Ledger.Projections.Application.Tests.csproj" />

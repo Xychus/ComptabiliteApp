@@ -116,15 +116,32 @@ run "iam_du_pipeline_sous_frontiere" {
   assert {
     condition = alltrue(flatten([
       for s in jsondecode(aws_iam_role_policy.apply_iam.policy).Statement : [
-        for r in flatten([s.Resource]) : r == "*" || startswith(r, "arn:aws:iam::111122223333:role/ledger/") || startswith(r, "arn:aws:iam::111122223333:policy/ledger/")
+        for r in flatten([s.Resource]) : r == "*" || startswith(r, "arn:aws:iam::111122223333:role/ledger/") || startswith(r, "arn:aws:iam::111122223333:policy/ledger/") || startswith(r, "arn:aws:iam::111122223333:instance-profile/ledger/")
       ] if s.Effect == "Allow"
     ]))
-    error_message = "Le pipeline ne gère que les rôles et politiques du chemin /ledger/."
+    error_message = "Le pipeline ne gère que les rôles, politiques et profils d'instance du chemin /ledger/."
   }
 
   assert {
     condition     = contains([for s in jsondecode(aws_iam_policy.frontiere.policy).Statement : s.Sid if s.Effect == "Deny"], "AucuneGestionDeCompte")
-    error_message = "La frontière doit exclure IAM, Organizations et Account."
+    error_message = "La frontière doit exclure Organizations et Account."
+  }
+
+  assert {
+    condition = one([
+      for s in jsondecode(aws_iam_policy.frontiere.policy).Statement : s
+      if s.Sid == "AucuneGestionIamSaufPassageAEcs"
+    ]).Condition.StringNotEquals["iam:PassedToService"] == "ecs-tasks.amazonaws.com"
+    error_message = "La frontière refuse toute action IAM sauf le passage d'un rôle à ECS."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(aws_iam_policy.frontiere.policy).Statement :
+      s.Resource == "arn:aws:iam::111122223333:role/ledger/*" && s.Condition.StringEquals["iam:PassedToService"] == "ecs-tasks.amazonaws.com"
+      if s.Effect == "Allow" && contains(flatten([s.Action]), "iam:PassRole")
+    ])
+    error_message = "Seuls les rôles /ledger/ peuvent être passés, et seulement à ECS."
   }
 
   assert {

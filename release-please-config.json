@@ -24,6 +24,7 @@
     "src/Query": { "component": "query" },
     "src/Authorizer": { "component": "authorizer" },
     "src/Contracts": { "component": "contracts" },
+    "src/Pki": { "component": "pki" },
     "infra": { "component": "infra" }
   }
 }

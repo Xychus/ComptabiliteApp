@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Pki\Ledger.Pki.Sentinelle\Ledger.Pki.Sentinelle.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Ledger.Pki.Application.Tests\Support\*.cs" Link="Support\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

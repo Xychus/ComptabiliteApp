@@ -1,3 +1,4 @@
+using Ledger.Hebergement;
 using Ledger.Query.Api.Composition;
 using Ledger.Query.Api.Http;
 using Ledger.Query.Api.Observabilite;
@@ -16,6 +17,7 @@ public static class HebergementApiRequete
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = TailleMaxCorps);
+        builder.AjouterTlsInterne();
         builder.AjouterObservabilite();
         builder.Services.AjouterConsultationsRequete(builder.Configuration, builder.Environment);
         builder.Services.AjouterAuthentificationRequete(builder.Configuration);

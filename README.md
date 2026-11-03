@@ -17,7 +17,8 @@ de Revenu Québec (6 ans, intégrité vérifiable). Services en .NET 10, déploy
 ## Structure
 
 ```
-src/        services (Command, Projections, Query, Authorizer), Contracts, SharedKernel, Tools
+src/        services (Command, Projections, Query, Authorizer), Pki (PKI interne), Contracts, SharedKernel,
+            Postgres et Hebergement (infrastructure partagée), Tools
 tests/      un projet de tests par projet de src/, plus tests/Architecture et tests/EndToEnd
 deploy/     connecteur Debezium (invariant, réutilisé sur ECS) et chaîne locale
 infra/      Terraform (à partir de la phase 6)

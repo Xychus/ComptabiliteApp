@@ -19,8 +19,48 @@ public sealed class SchemaTests(PostgresFixture database)
     {
         Assert.True(database.FirstRun.Successful, database.FirstRun.Error?.ToString());
         Assert.Equal(
-            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections", "0008_publication_et_purge_outbox"],
+            ["0001_journal", "0002_append_only_et_sceau", "0003_outbox", "0004_referentiel", "0005_roles_et_publication", "0006_sceau_avec_nombre_d_evenements", "0007_projections", "0008_publication_et_purge_outbox", "0009_connexion_iam"],
             database.FirstRun.ExecutedScripts.Select(name => name.Split('.')[^2]));
+    }
+
+    [Fact]
+    public async Task La_connexion_iam_n_est_accordee_que_sur_Aurora()
+    {
+        // PostgreSQL local : pas de rôle rds_iam, ledger_query reste NOLOGIN.
+        Assert.False(await ScalarAsync<bool>(database.OwnerConnectionString, "SELECT rolcanlogin FROM pg_roles WHERE rolname = 'ledger_query'"));
+
+        // Aurora simulée dans une transaction annulée (les rôles sont partagés par les autres tests) :
+        // rds_iam existe, le script accorde rds_iam et LOGIN aux quatre rôles applicatifs, pas à Debezium.
+        string script;
+        await using (var flux = typeof(LedgerMigrator).Assembly.GetManifestResourceStream("Ledger.Migrations.Scripts.0009_connexion_iam.sql")!)
+        using (var lecteur = new StreamReader(flux))
+        {
+            script = await lecteur.ReadToEndAsync(Ct);
+        }
+
+        await using var connexion = new NpgsqlConnection(database.OwnerConnectionString);
+        await connexion.OpenAsync(Ct);
+        await using var transaction = await connexion.BeginTransactionAsync(Ct);
+        await using (var preparation = new NpgsqlCommand($"CREATE ROLE rds_iam; {script}", connexion, transaction))
+        {
+            await preparation.ExecuteNonQueryAsync(Ct);
+        }
+
+        await using var verification = new NpgsqlCommand(
+            """
+            SELECT count(*) FILTER (WHERE r.rolcanlogin AND pg_has_role(r.rolname, 'rds_iam', 'MEMBER')),
+                   bool_or(r.rolname = 'debezium' AND pg_has_role(r.rolname, 'rds_iam', 'MEMBER'))
+            FROM pg_roles r
+            WHERE r.rolname IN ('ledger_app', 'ledger_projection', 'ledger_query', 'ledger_maintenance', 'debezium')
+            """,
+            connexion,
+            transaction);
+        await using var lecture = await verification.ExecuteReaderAsync(Ct);
+        Assert.True(await lecture.ReadAsync(Ct));
+        Assert.Equal(4L, lecture.GetInt64(0));
+        Assert.False(lecture.GetBoolean(1));
+        await lecture.CloseAsync();
+        await transaction.RollbackAsync(Ct);
     }
 
     [Fact]

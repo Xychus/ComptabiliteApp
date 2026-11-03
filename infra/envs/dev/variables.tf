@@ -54,3 +54,94 @@ variable "version_image_migrations" {
   type        = string
   default     = "0.1.0"
 }
+
+# --- Exécution (phase 8) -------------------------------------------------------------------
+
+variable "versions_images" {
+  description = <<-EOT
+    Versions exactes des images publiées par images.yml (ADR 0028). null : composant sans service
+    (aucune image publiée). pki : Lambda et sentinelle ; kafka, debezium, collecteur : copies
+    des images officielles tierces (étiquette de l'éditeur).
+  EOT
+  type = object({
+    pki         = optional(string)
+    command     = optional(string)
+    query       = optional(string)
+    projections = optional(string)
+    migrations  = optional(string)
+    kafka       = optional(string, "4.3.2")
+    debezium    = optional(string, "3.7.0.Final")
+    collecteur  = optional(string, "v0.50.0")
+  })
+  default = {}
+}
+
+variable "generations_intermediaire" {
+  description = "Générations de la CA intermédiaire (une clé KMS chacune), ex. [\"2026\"] (runbook pki-ceremonie-annuelle)."
+  type        = set(string)
+  default     = []
+}
+
+variable "generation_active" {
+  description = "Génération active de l'intermédiaire ; utilisée dès que pki/intermediaire.pem est versionné."
+  type        = string
+  default     = null
+}
+
+variable "identifiant_grappe_kraft" {
+  description = "Identifiant KRaft de la grappe Kafka (UUID base64url), fixé une fois pour toutes."
+  type        = string
+  default     = "0TqLSlDtQHOLxtu682Oxmg"
+}
+
+variable "kafka" {
+  description = "Dimensionnement des nœuds Kafka."
+  type = object({
+    type_instance    = string
+    memoire_mio      = number
+    taille_volume_go = number
+  })
+  default = {
+    type_instance    = "t3.large"
+    memoire_mio      = 2048
+    taille_volume_go = 20
+  }
+}
+
+variable "services" {
+  description = "Nombre de tâches des services : minimum et maximum des API (mise à l'échelle), worker."
+  type = object({
+    taches_minimum = number
+    taches_maximum = number
+    taches_worker  = number
+  })
+  default = {
+    taches_minimum = 1
+    taches_maximum = 2
+    taches_worker  = 1
+  }
+}
+
+variable "url_realm_keycloak" {
+  description = "URL du realm Keycloak émetteur des jetons (P6, phase 9)."
+  type        = string
+  default     = "https://keycloak.ledger-dev.internal/realms/ledger"
+}
+
+variable "protection_suppression" {
+  description = "Protection contre la suppression de l'équilibreur de charge."
+  type        = bool
+  default     = false
+}
+
+variable "delai_suppression_cles_pki_jours" {
+  description = "Délai avant la suppression d'une clé d'intermédiaire retirée."
+  type        = number
+  default     = 7
+}
+
+variable "fenetre_recuperation_secrets_jours" {
+  description = "Fenêtre de récupération des secrets de la PKI supprimés (0 : immédiat)."
+  type        = number
+  default     = 0
+}

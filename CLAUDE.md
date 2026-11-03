@@ -38,6 +38,9 @@ src/
   Projections/Ledger.Projections.{Application,Infrastructure,Worker}/
   Query/Ledger.Query.{Application,Infrastructure,Api}/
   Authorizer/Ledger.Authorizer/            # autorizer Lambda (Keycloak)
+  Pki/Ledger.Pki.{Application,Infrastructure,Lambda,Sentinelle}/  # PKI interne (ADR 0010)
+  Postgres/Ledger.Postgres.Infrastructure/ # source de données Npgsql, authentification IAM (ADR 0029)
+  Hebergement/Ledger.Hebergement/          # HTTPS de Kestrel avec un certificat de la PKI
   Tools/Ledger.Migrations/                 # migrations SQL (DbUp)
   Tools/Ledger.Integrity/                  # vérification hash + balance_after, export archive
 tests/                                     # miroir de src/, un projet de tests par projet
@@ -46,7 +49,7 @@ deploy/
   debezium/                                # connecteur invariant (réutilisé tel quel sur ECS)
   local/                                   # docker compose : realm Keycloak, rôles, démo
 infra/
-  bootstrap/  modules/  envs/{dev,prod}/  keycloak/
+  bootstrap/  modules/  envs/{dev,prod}/  keycloak/  rds/   # rds/ : certificats racines RDS publics
 docs/
   plan/PLAN.md  adr/  api/{openapi,query-openapi}.json  runbooks/
 .github/workflows/

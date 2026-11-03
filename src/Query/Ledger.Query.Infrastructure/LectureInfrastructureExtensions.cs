@@ -1,8 +1,8 @@
+using Ledger.Postgres.Infrastructure;
 using Ledger.Query.Application.Lecture;
 using Ledger.Query.Infrastructure.Memoire;
 using Ledger.Query.Infrastructure.Postgres;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace Ledger.Query.Infrastructure;
 
@@ -11,13 +11,13 @@ public static class LectureInfrastructureExtensions
 {
     /// <summary>
     /// Lecture PostgreSQL. La chaîne de connexion désigne le rôle <c>ledger_query</c>
-    /// (<c>SSL Mode=VerifyFull</c> en AWS) ; elle vient de Secrets Manager et n'est lue qu'à la
-    /// première résolution de la source de données.
+    /// (<c>SSL Mode=VerifyFull</c> en AWS, authentification IAM sans mot de passe, ADR 0029) ;
+    /// elle n'est lue qu'à la première résolution de la source de données.
     /// </summary>
     public static IServiceCollection AjouterLecturePostgres(this IServiceCollection services, Func<IServiceProvider, string> chaineConnexion)
     {
         ArgumentNullException.ThrowIfNull(chaineConnexion);
-        services.AddSingleton(sp => NpgsqlDataSource.Create(chaineConnexion(sp)));
+        services.AddSingleton(sp => SourceDonneesPostgres.Creer(sp, chaineConnexion(sp)));
         services.AddSingleton<ILecteurPlanComptable, NpgsqlLecteurPlanComptable>();
         services.AddSingleton<ILecteurSoldes, NpgsqlLecteurSoldes>();
         services.AddSingleton<ILecteurMouvements, NpgsqlLecteurMouvements>();

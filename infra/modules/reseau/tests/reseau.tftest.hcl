@@ -52,7 +52,10 @@ run "points_de_terminaison_prives" {
   command = apply
 
   assert {
-    condition     = toset(keys(aws_vpc_endpoint.interface)) == toset(["kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api"])
+    condition = toset(keys(aws_vpc_endpoint.interface)) == toset([
+      "kms", "secretsmanager", "ssm", "ecr.api", "ecr.dkr", "logs", "sts", "execute-api",
+      "acm", "ecs", "ecs-agent", "ecs-telemetry", "monitoring", "xray",
+    ])
     error_message = "Les points de terminaison d'interface exigés par le plan sont absents."
   }
 
@@ -74,6 +77,11 @@ run "points_de_terminaison_prives" {
   assert {
     condition     = length(aws_default_security_group.defaut.ingress) == 0 && length(aws_default_security_group.defaut.egress) == 0
     error_message = "Le groupe de sécurité par défaut doit être vide."
+  }
+
+  assert {
+    condition     = endswith(aws_route53_zone.interne.name, ".internal") && length(aws_route53_zone.interne.vpc) == 1
+    error_message = "La zone DNS privée est en « .internal » et rattachée au seul VPC."
   }
 }
 

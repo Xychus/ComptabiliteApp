@@ -12,7 +12,7 @@ run "une_cle_par_domaine_avec_rotation" {
   command = apply
 
   assert {
-    condition     = toset(keys(aws_kms_key.cle)) == toset(["aurora", "kafka", "s3-archive", "secrets", "logs", "ecr", "ecs", "lambda", "ssm"])
+    condition     = toset(keys(aws_kms_key.cle)) == toset(["aurora", "kafka", "s3-archive", "secrets", "logs", "ecr", "ecs", "lambda", "ssm", "xray"])
     error_message = "Une clé par domaine de données est attendue."
   }
 

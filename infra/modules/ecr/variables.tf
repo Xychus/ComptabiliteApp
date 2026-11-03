@@ -34,3 +34,20 @@ variable "suppression_forcee" {
   type        = bool
   default     = false
 }
+
+variable "depots_lambda" {
+  description = "Dépôts dont les images sont des fonctions Lambda du compte (ex. « pki-lambda ») : le service Lambda est autorisé à les tirer."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for d in var.depots_lambda : contains(var.depots, d)])
+    error_message = "Un dépôt Lambda doit figurer dans « depots »."
+  }
+}
+
+variable "arn_fonctions_lambda" {
+  description = "Motif ARN des fonctions autorisées à tirer les dépôts Lambda (ex. arn:aws:lambda:ca-central-1:111122223333:function:ledger-*)."
+  type        = string
+  default     = null
+}

@@ -37,3 +37,8 @@ output "identifiants_instances" {
   description = "Identifiants des instances de la grappe."
   value       = [for i in aws_rds_cluster_instance.instance : i.identifier]
 }
+
+output "identifiant_ressource" {
+  description = "Identifiant de ressource de la grappe (cluster-…) : ARN rds-db:connect de l'authentification IAM (ADR 0029)."
+  value       = aws_rds_cluster.grappe.cluster_resource_id
+}

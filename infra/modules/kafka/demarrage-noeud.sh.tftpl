@@ -1,0 +1,30 @@
+#!/bin/bash
+# Démarrage d'une instance hôte d'un nœud Kafka (AMI ECS optimisée, Amazon Linux 2023).
+set -euo pipefail
+
+# Agent ECS : grappe, attribut de placement du nœud, IMDS inaccessible aux tâches awsvpc.
+cat >> /etc/ecs/ecs.config <<CONFIG
+ECS_CLUSTER=${grappe}
+ECS_INSTANCE_ATTRIBUTES={"ledger.noeud":"${noeud}"}
+ECS_AWSVPC_BLOCK_IMDS=true
+ECS_ENABLE_TASK_IAM_ROLE=true
+CONFIG
+
+# Volume de données persistant (rattaché par Terraform) : attendu, formaté une seule fois, monté.
+peripherique=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${volume_id}
+for _ in $(seq 1 120); do
+  [ -e "$peripherique" ] && break
+  sleep 5
+done
+[ -e "$peripherique" ] || { echo "Volume ${volume_id} absent" >&2; exit 1; }
+
+if ! blkid "$peripherique" >/dev/null 2>&1; then
+  mkfs.xfs -L kafka "$peripherique"
+fi
+
+mkdir -p /donnees/kafka
+grep -q "LABEL=kafka" /etc/fstab || echo "LABEL=kafka /donnees/kafka xfs defaults,nofail,noatime 0 2" >> /etc/fstab
+mount -a
+# Utilisateur du conteneur apache/kafka (appuser, uid 1000).
+chown 1000:1000 /donnees/kafka
+chmod 0700 /donnees/kafka

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Exécutable autonome : client de l'API d'exécution Lambda (image chiseled, sans image de base Lambda). -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" />
+    <PackageReference Include="Amazon.Lambda.RuntimeSupport" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ledger.Pki.Application\Ledger.Pki.Application.csproj" />
+    <ProjectReference Include="..\Ledger.Pki.Infrastructure\Ledger.Pki.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

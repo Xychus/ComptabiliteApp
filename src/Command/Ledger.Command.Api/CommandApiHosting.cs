@@ -3,6 +3,7 @@ using Ledger.Command.Api.Endpoints;
 using Ledger.Command.Api.Http;
 using Ledger.Command.Api.Observability;
 using Ledger.Command.Api.Security;
+using Ledger.Hebergement;
 
 namespace Ledger.Command.Api;
 
@@ -16,6 +17,7 @@ public static class CommandApiHosting
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.WebHost.ConfigureKestrel(kestrel => kestrel.Limits.MaxRequestBodySize = MaxRequestBodySize);
+        builder.AjouterTlsInterne();
         builder.AddLedgerObservability();
         builder.Services.AddLedgerCommands(builder.Configuration, builder.Environment);
         builder.Services.AddLedgerAuthentication(builder.Configuration);

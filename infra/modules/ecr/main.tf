@@ -43,3 +43,29 @@ resource "aws_ecr_lifecycle_policy" "depot" {
     }]
   })
 }
+
+# Lambda tire l'image avec son propre principal de service : la politique du dépôt doit l'autoriser,
+# pour les seules fonctions du compte (documentation Lambda, images de conteneur).
+resource "aws_ecr_repository_policy" "lambda" {
+  for_each = var.depots_lambda
+
+  repository = aws_ecr_repository.depot[each.key].name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "TirageParLambda"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
+      Condition = { ArnLike = { "aws:sourceArn" = var.arn_fonctions_lambda } }
+    }]
+  })
+
+  lifecycle {
+    precondition {
+      condition     = var.arn_fonctions_lambda != null
+      error_message = "arn_fonctions_lambda est exigé avec depots_lambda."
+    }
+  }
+}

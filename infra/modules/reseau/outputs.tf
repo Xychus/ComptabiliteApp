@@ -27,3 +27,11 @@ output "tables_de_routage" {
   description = "Identifiant de la table de routage de chaque niveau."
   value       = { for niveau, t in aws_route_table.niveau : niveau => t.id }
 }
+
+output "zone_interne" {
+  description = "Zone DNS privée : identifiant et nom de domaine."
+  value = {
+    id      = aws_route53_zone.interne.zone_id
+    domaine = aws_route53_zone.interne.name
+  }
+}

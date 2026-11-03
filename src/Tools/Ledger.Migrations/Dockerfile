@@ -5,14 +5,18 @@
 #   LEDGER_MIGRATIONS_CONNECTION_STRING  chaîne complète (développement local), ou bien :
 #   LEDGER_MIGRATIONS_HOTE, _BASE        en clair (définition de tâche ECS)
 #   LEDGER_MIGRATIONS_UTILISATEUR, _MOT_DE_PASSE  secrets ECS (secret maître géré par RDS)
+# Argument « purger-outbox » : purge planifiée de l'outbox (rôle ledger_maintenance, IAM) :
+#   LEDGER_PURGE_HOTE, _BASE, _REGION, _CERTIFICAT_RACINE, _RETENTION_HEURES, _SLOT
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /repo
 
 COPY Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY src/Postgres/Ledger.Postgres.Infrastructure/Ledger.Postgres.Infrastructure.csproj src/Postgres/Ledger.Postgres.Infrastructure/
 COPY src/Tools/Ledger.Migrations/Ledger.Migrations.csproj src/Tools/Ledger.Migrations/
 RUN dotnet restore src/Tools/Ledger.Migrations/Ledger.Migrations.csproj
 
+COPY src/Postgres/ src/Postgres/
 COPY src/Tools/Ledger.Migrations/ src/Tools/Ledger.Migrations/
 RUN dotnet publish src/Tools/Ledger.Migrations/Ledger.Migrations.csproj \
       --no-restore -c Release -o /app -p:UseAppHost=false

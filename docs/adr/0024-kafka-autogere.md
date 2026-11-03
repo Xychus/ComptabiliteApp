@@ -1,6 +1,6 @@
 # 0024 — Kafka autogéré sur ECS (EC2 + EBS), mTLS, Debezium en conteneur
 
-- **Statut** : proposé
+- **Statut** : accepté (révisé le 2026-10-25, phase 8 : voir « Révision »)
 - **Date** : 2026-10-23
 - **Phase** : 6 (décision anticipée ; mise en œuvre en phase 8)
 - **Remplace** : ADR 0009 (MSK avec authentification IAM), jamais rédigé
@@ -62,3 +62,23 @@ depuis lui (ADR 0016) ; une perte dans Kafka se répare, mais doit rester except
 - **EC2 sans ECS** : un second modèle d'exploitation à côté d'ECS.
 - **SASL/SCRAM** : mots de passe à synchroniser entre Secrets Manager et Kafka ; le mTLS réutilise
   la PKI interne et donne une identité forte par client.
+
+## Révision (2026-10-25, phase 8)
+
+1. **Instances EC2 gérées par Terraform, sans groupe Auto Scaling ni groupe de capacité** : un
+   volume EBS persistant doit être rattaché à une instance stable (`aws_volume_attachment`) ; un
+   groupe Auto Scaling exigerait un mécanisme de rattachement au démarrage. Remplacer un nœud est
+   une opération manuelle, un nœud à la fois (`docs/runbooks/kafka-remplacement-noeud.md`). Le
+   rôle lié au service d'Auto Scaling n'a donc pas à être autorisé sur la clé `kafka`.
+2. **Tâches en réseau `awsvpc`** (IMDS bloqué pour les tâches, `ECS_AWSVPC_BLOCK_IMDS`) et noms
+   stables publiés par **Cloud Map** (`kafka-N.kafka.<prefixe>.internal`) ; pas de Service Connect.
+3. **Écouteurs nommés `MTLS` et `CONTROLLER`**, tous deux en SSL, **TLS 1.3 seul**, keystore et
+   truststore au format PEM écrits par la sentinelle ; un écouteur nommé `SSL` déclenche dans le
+   script de l'image l'exigence de keystores JKS protégés par mot de passe.
+4. **Rotation des certificats des brokers par redémarrage ordonné** (ADR 0010, révision) au lieu
+   du rechargement à chaud.
+5. **Images copiées dans ECR par le CI** (ADR 0028) au lieu du cache *pull-through* : celui de
+   Docker Hub exige un secret chiffré par `aws/secretsmanager`.
+6. Sujet `ledger.events` : 6 partitions, réplication 3, `min.insync.replicas = 2`, créé avec les
+   ACL par la tâche d'initialisation (identité `kafka-admin`). Mesures et alarmes publiées par les
+   sentinelles (`Ledger/Kafka` : nœuds présents, sous-réplication, disque, retard des groupes).

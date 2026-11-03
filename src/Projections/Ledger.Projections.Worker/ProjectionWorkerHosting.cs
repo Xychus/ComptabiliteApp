@@ -1,3 +1,4 @@
+using Ledger.Postgres.Infrastructure;
 using Ledger.Projections.Application;
 using Ledger.Projections.Application.Processing;
 using Ledger.Projections.Application.Rebuild;
@@ -57,6 +58,7 @@ public static class ProjectionWorkerHosting
                 throw new InvalidOperationException($"Chaîne de connexion « {ConnectionStringName} » absente.");
             }
 
+            services.AjouterAuthentificationPostgres(builder.Configuration.GetSection(OptionsPostgres.Section).Get<OptionsPostgres>() ?? new OptionsPostgres());
             services.AddPostgresProjectionStore(_ => connectionString);
         }
 
