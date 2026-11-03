@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Ledger.Query.Api.Composition;
+using Ledger.Clients;
+using Ledger.Hebergement;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Options;
@@ -58,6 +60,11 @@ public static class AuthentificationRequete
 
                 // Métadonnées OIDC en HTTP tolérées seulement en développement (Keycloak local, ADR 0020).
                 jwt.RequireHttpsMetadata = !environnement.IsDevelopment();
+
+                // Canal arrière OIDC (configuration, JWKS) : en AWS, Keycloak présente un certificat de
+                // la PKI interne, seule autorité admise (ADR 0030). Sans racine : magasin du système.
+                jwt.BackchannelHttpHandler = ConfianceRacinePki.CreerGestionnaire(
+                    configuration.GetSection(OptionsTlsInterne.Section).Get<OptionsTlsInterne>()?.Racine);
                 jwt.MapInboundClaims = false;
                 jwt.TokenValidationParameters.NameClaimType = "azp";
                 jwt.TokenValidationParameters.ValidateIssuer = true;

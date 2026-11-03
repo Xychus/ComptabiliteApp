@@ -227,6 +227,7 @@ module "command_api" {
   secrets = {
     Ledger__Tls__Chaine = "${local.secret_tls["command-api"]}:chaine::"
     Ledger__Tls__Cle    = "${local.secret_tls["command-api"]}:cle::"
+    Ledger__Tls__Racine = "${local.secret_tls["command-api"]}:racine::"
   }
   arn_secrets_lus         = [local.secret_tls["command-api"]]
   sorties                 = { aurora = { groupe_securite = module.aurora.groupe_securite, port = 5432 } }
@@ -273,6 +274,7 @@ module "query_api" {
   secrets = {
     Ledger__Tls__Chaine = "${local.secret_tls["query-api"]}:chaine::"
     Ledger__Tls__Cle    = "${local.secret_tls["query-api"]}:cle::"
+    Ledger__Tls__Racine = "${local.secret_tls["query-api"]}:racine::"
   }
   arn_secrets_lus         = [local.secret_tls["query-api"]]
   sorties                 = { aurora = { groupe_securite = module.aurora.groupe_securite, port = 5432 } }

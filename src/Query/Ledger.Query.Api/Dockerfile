@@ -16,6 +16,7 @@ COPY src/SharedKernel/Ledger.SharedKernel/Ledger.SharedKernel.csproj src/SharedK
 COPY src/Contracts/version.txt src/Contracts/
 COPY src/Contracts/Ledger.Contracts/Ledger.Contracts.csproj src/Contracts/Ledger.Contracts/
 COPY src/Postgres/Ledger.Postgres.Infrastructure/Ledger.Postgres.Infrastructure.csproj src/Postgres/Ledger.Postgres.Infrastructure/
+COPY src/Clients/Ledger.Clients/Ledger.Clients.csproj src/Clients/Ledger.Clients/
 COPY src/Hebergement/Ledger.Hebergement/Ledger.Hebergement.csproj src/Hebergement/Ledger.Hebergement/
 COPY src/Query/version.txt src/Query/
 COPY src/Query/Ledger.Query.Application/Ledger.Query.Application.csproj src/Query/Ledger.Query.Application/
@@ -26,6 +27,7 @@ RUN dotnet restore src/Query/Ledger.Query.Api/Ledger.Query.Api.csproj
 COPY src/SharedKernel/ src/SharedKernel/
 COPY src/Contracts/ src/Contracts/
 COPY src/Postgres/ src/Postgres/
+COPY src/Clients/ src/Clients/
 COPY src/Hebergement/ src/Hebergement/
 COPY src/Query/ src/Query/
 # Le contrat OpenAPI est généré et vérifié par le CI, pas dans l'image.

@@ -38,6 +38,7 @@ src/
   Projections/Ledger.Projections.{Application,Infrastructure,Worker}/
   Query/Ledger.Query.{Application,Infrastructure,Api}/
   Authorizer/Ledger.Authorizer/            # autorizer Lambda (Keycloak)
+  Clients/Ledger.Clients/                  # appels sortants : jeton mTLS, retry 429, racine PKI
   Pki/Ledger.Pki.{Application,Infrastructure,Lambda,Sentinelle}/  # PKI interne (ADR 0010)
   Postgres/Ledger.Postgres.Infrastructure/ # source de données Npgsql, authentification IAM (ADR 0029)
   Hebergement/Ledger.Hebergement/          # HTTPS de Kestrel avec un certificat de la PKI

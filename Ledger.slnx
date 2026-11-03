@@ -3,6 +3,9 @@
   <Folder Name="/src/Authorizer/">
     <Project Path="src/Authorizer/Ledger.Authorizer/Ledger.Authorizer.csproj" />
   </Folder>
+  <Folder Name="/src/Clients/">
+    <Project Path="src/Clients/Ledger.Clients/Ledger.Clients.csproj" />
+  </Folder>
   <Folder Name="/src/Command/">
     <Project Path="src/Command/Ledger.Command.Api/Ledger.Command.Api.csproj" />
     <Project Path="src/Command/Ledger.Command.Application/Ledger.Command.Application.csproj" />
@@ -47,6 +50,9 @@
   </Folder>
   <Folder Name="/tests/Authorizer/">
     <Project Path="tests/Authorizer/Ledger.Authorizer.Tests/Ledger.Authorizer.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Clients/">
+    <Project Path="tests/Clients/Ledger.Clients.Tests/Ledger.Clients.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Command/">
     <Project Path="tests/Command/Ledger.Command.Api.Tests/Ledger.Command.Api.Tests.csproj" />

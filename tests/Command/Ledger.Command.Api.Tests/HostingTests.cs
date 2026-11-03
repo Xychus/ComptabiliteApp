@@ -1,8 +1,12 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Ledger.Command.Api.Composition;
 using Ledger.Command.Api.Http;
+using Ledger.Command.Api.Security;
 using Ledger.Command.Api.Tests.Support;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -12,11 +16,18 @@ namespace Ledger.Command.Api.Tests;
 public sealed class HostingTests
 {
     [Fact]
-    public async Task Sans_autorite_Keycloak_l_application_ne_demarre_pas()
+    public void Sans_autorite_Keycloak_l_application_ne_demarre_pas()
     {
-        await using var factory = new LedgerApiFactory(settings: new Dictionary<string, string?> { ["Ledger:Authentication:Authority"] = string.Empty });
+        // Validateur exécuté par l'hôte au démarrage (ValidateOnStart), appelé directement : un hôte
+        // qui échoue au démarrage sous WebApplicationFactory lève tantôt l'erreur de validation, tantôt
+        // ObjectDisposedException (course entre le fil de l'application et DeferredHost).
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Ledger:Authentication:Authority"] = string.Empty })
+            .Build();
+        using var services = new ServiceCollection().AddLedgerAuthentication(configuration).BuildServiceProvider();
 
-        Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        var error = Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<IStartupValidator>().Validate());
+        Assert.Contains(nameof(LedgerAuthenticationOptions.Authority), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -34,6 +45,24 @@ public sealed class HostingTests
         await using var factory = new LedgerApiFactory(environment: "Production");
 
         Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+    }
+
+    [Fact]
+    public async Task La_racine_de_la_pki_seule_valide_le_canal_arriere_oidc()
+    {
+        // ADR 0030 : Keycloak présente un certificat de la PKI interne en AWS.
+        using var cle = ECDsa.Create();
+        using var racine = new CertificateRequest("CN=Racine", cle, HashAlgorithmName.SHA256)
+            .CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
+        await using var avecRacine = new LedgerApiFactory(
+            connectionString: "Host=localhost;Database=ledger;Username=ledger_app",
+            settings: new Dictionary<string, string?> { ["Ledger:Tls:Racine"] = racine.ExportCertificatePem() });
+        await using var sansRacine = new LedgerApiFactory(connectionString: "Host=localhost;Database=ledger;Username=ledger_app");
+
+        var gestionnaire = Assert.IsType<SocketsHttpHandler>(avecRacine.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme).BackchannelHttpHandler);
+
+        Assert.NotNull(gestionnaire.SslOptions.RemoteCertificateValidationCallback);
+        Assert.Null(sansRacine.Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme).BackchannelHttpHandler);
     }
 
     [Theory]

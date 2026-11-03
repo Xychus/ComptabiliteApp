@@ -143,6 +143,22 @@ jobs:
           queries: security-and-quality
       - name: Build
         run: dotnet build Ledger.slnx -c Release
+      # Le code généré sous obj/ (générateurs de sources, point d'entrée xUnit) n'est pas le nôtre :
+      # paths-ignore est sans effet pour C# compilé (build-mode manual), d'où le filtrage du SARIF
+      # avant l'envoi. Un résultat dont un emplacement est sous obj/ est retiré.
       - uses: github/codeql-action/analyze@v4
         with:
+          category: /language:csharp
+          upload: never
+          output: sarif-results
+      - name: Retrait des résultats du code généré (obj/)
+        run: |
+          for fichier in sarif-results/*.sarif; do
+            jq '.runs |= map(.results |= map(select(all(.locations[]?; .physicalLocation.artifactLocation.uri | test("(^|/)obj/") | not))))' \
+              "$fichier" > "$fichier.filtre"
+            mv "$fichier.filtre" "$fichier"
+          done
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-results
           category: /language:csharp
