@@ -42,7 +42,7 @@ internal static class Exemples
         {
             PointTerminaisonJetons = new Uri("https://keycloak.ledger-test.internal/realms/ledger/protocol/openid-connect/token"),
             ClientId = "ledger-exemple",
-            CertificatClient = new CertificateRequest("CN=ledger-exemple", cle, HashAlgorithmName.SHA256).CreateSelfSigned(Maintenant, Maintenant.AddDays(7)),
+            IdentiteClient = new IdentiteClientPki(new CertificateRequest("CN=ledger-exemple", cle, HashAlgorithmName.SHA256).CreateSelfSigned(Maintenant, Maintenant.AddDays(7)), []),
             Portees = portees,
             AdresseApi = new Uri("https://api.ledger-test.internal/v1/"),
             TentativesMaximum = tentatives,
