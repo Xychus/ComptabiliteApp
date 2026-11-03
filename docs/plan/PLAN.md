@@ -494,12 +494,12 @@ Révisée le 2026-11-02 (décisions du responsable du projet, [ADR 0030](../adr/
 au démarrage, clients authentifiés par certificat de la PKI, certificat ACM public sur l'ALB. Trois PR.
 
 **9a — Autorizer et clients (.NET seulement)**
-- [ ] `Ledger.Authorizer` (Lambda `REQUEST`, runtime géré `dotnet10`) : validation JWT via la
+- [x] `Ledger.Authorizer` (Lambda `REQUEST`, runtime géré `dotnet10`) : validation JWT via la
       configuration OIDC du realm mise en cache (canal arrière qui fait confiance à la racine de
       la PKI), lecture de `azp` et des scopes, recherche de la clé du plan d'usage (SSM
       SecureString CMK), politique couvrant **toutes** les routes autorisées par les scopes (piège
       du cache de politique), `usageIdentifierKey`, `context.clientId`
-- [ ] Tests unitaires de l'autorizer (jetons valides, expirés, mauvaise audience, mauvais émetteur,
+- [x] Tests unitaires de l'autorizer (jetons valides, expirés, mauvaise audience, mauvais émetteur,
       mauvaise signature, scopes → politique) avec un JWKS de test
 - [ ] Clients .NET d'exemple : jeton par *client credentials* authentifié en mTLS (certificat PKI),
       cache du jeton, retry à backoff sur `429`
