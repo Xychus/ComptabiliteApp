@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.CertificateManager" />
     <PackageReference Include="AWSSDK.CloudWatch" />
     <PackageReference Include="AWSSDK.ECS" />
     <PackageReference Include="AWSSDK.KeyManagementService" />

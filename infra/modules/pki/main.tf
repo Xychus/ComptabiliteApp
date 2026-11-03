@@ -27,11 +27,9 @@ locals {
       },
       length(i.noms_dns) > 0 ? { "pki:san" = join(" ", i.noms_dns) } : {},
       length(i.services) > 0 ? { "pki:grappe" = var.nom_grappe, "pki:services" = join(" ", i.services) } : {},
-      i.certificat_acm_arn != null ? { "pki:acm" = i.certificat_acm_arn } : {},
     )
   }
 
-  certificats_acm = compact([for i in values(var.identites) : i.certificat_acm_arn])
   services_ecs = distinct(concat(
     flatten([for i in values(var.identites) : i.services]),
     flatten([for m in values(var.mots_de_passe_postgres) : m.services]),
@@ -296,14 +294,6 @@ resource "aws_iam_role_policy" "lambda" {
       ] : d if local.acces_aurora],
       [for d in [
         {
-          Sid      = "ReimportAcm"
-          Effect   = "Allow"
-          Action   = "acm:ImportCertificate"
-          Resource = local.certificats_acm
-        },
-      ] : d if length(local.certificats_acm) > 0],
-      [for d in [
-        {
           Sid      = "RedeploiementServices"
           Effect   = "Allow"
           Action   = "ecs:UpdateService"
@@ -334,7 +324,7 @@ resource "aws_security_group" "lambda" {
 
 resource "aws_vpc_security_group_egress_rule" "lambda_vers_points_de_terminaison" {
   security_group_id            = aws_security_group.lambda.id
-  description                  = "HTTPS vers les points de terminaison VPC (KMS, Secrets Manager, ACM, ECS, CloudWatch)"
+  description                  = "HTTPS vers les points de terminaison VPC (KMS, Secrets Manager, ECS, CloudWatch)"
   ip_protocol                  = "tcp"
   from_port                    = 443
   to_port                      = 443

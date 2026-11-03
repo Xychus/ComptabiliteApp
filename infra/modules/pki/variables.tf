@@ -29,7 +29,7 @@ variable "sous_reseaux" {
 }
 
 variable "groupe_securite_points_de_terminaison" {
-  description = "Groupe des points de terminaison d'interface (Secrets Manager, KMS, ACM, ECS, CloudWatch)."
+  description = "Groupe des points de terminaison d'interface (Secrets Manager, KMS, ECS, CloudWatch)."
   type        = string
 }
 
@@ -92,15 +92,13 @@ variable "identites" {
   description = <<-EOT
     Certificats finaux, un secret chacun (clé = nom court du secret). nom_commun : identité des ACL
     Kafka ; noms_dns : SAN (obligatoire pour un usage serveur) ; usage : serveur, client ou
-    serveur-client ; services : services ECS de la grappe redéployés après chaque rotation ;
-    certificat_acm_arn : certificat ACM réimporté après chaque rotation (load balancer).
+    serveur-client ; services : services ECS de la grappe redéployés après chaque rotation.
   EOT
   type = map(object({
-    nom_commun         = string
-    noms_dns           = optional(list(string), [])
-    usage              = string
-    services           = optional(list(string), [])
-    certificat_acm_arn = optional(string)
+    nom_commun = string
+    noms_dns   = optional(list(string), [])
+    usage      = string
+    services   = optional(list(string), [])
   }))
   default = {}
 

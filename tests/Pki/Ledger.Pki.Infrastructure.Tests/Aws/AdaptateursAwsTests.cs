@@ -1,8 +1,5 @@
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Amazon;
-using Amazon.CertificateManager;
-using Amazon.CertificateManager.Model;
 using Amazon.CloudWatch;
 using Amazon.CloudWatch.Model;
 using Amazon.ECS;
@@ -97,35 +94,6 @@ public sealed class AdaptateursAwsTests : IDisposable
     }
 
     [Fact]
-    public async Task ReimportationAcm_reimporte_sous_le_meme_arn_avec_la_chaine_sans_le_final()
-    {
-        using var acm = new AcmEssai();
-        var action = new ReimportationAcm(acm);
-        var contenu = (await _pki.Emetteur().EmettreAsync(new ProfilCertificat("alb", ["api.ledger-dev.interne"], UsageCertificat.Serveur), Jeton)).Value;
-        var description = Description((ReimportationAcm.Etiquette, "arn:aws:acm:ca-central-1:111111111111:certificate/abc"));
-
-        Assert.True(action.SApplique(description));
-        Assert.False(action.SApplique(Description()));
-        await action.ExecuterAsync(description, contenu.VersJson(), Jeton);
-
-        Assert.Equal("arn:aws:acm:ca-central-1:111111111111:certificate/abc", acm.CertificateArn);
-        Assert.Equal(contenu.Certificat, acm.Certificat);
-        Assert.Equal(contenu.Cle, acm.Cle);
-        var chaine = new X509Certificate2Collection();
-        chaine.ImportFromPem(acm.Chaine);
-        Assert.Equal([_pki.Intermediaire.Thumbprint, _pki.Racine.Thumbprint], chaine.Select(c => c.Thumbprint));
-    }
-
-    [Fact]
-    public async Task ReimportationAcm_valeur_qui_n_est_pas_un_certificat_echoue()
-    {
-        using var acm = new AcmEssai();
-        var description = Description((ReimportationAcm.Etiquette, "arn:aws:acm:ca-central-1:111111111111:certificate/abc"));
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => new ReimportationAcm(acm).ExecuterAsync(description, "{}", Jeton));
-    }
-
-    [Fact]
     public async Task RedeploiementEcs_force_un_deploiement_par_service()
     {
         using var ecs = new EcsEssai();
@@ -168,7 +136,7 @@ public sealed class AdaptateursAwsTests : IDisposable
         Assert.Contains(services, s => s.ServiceType == typeof(IMagasinCertificats));
         Assert.Contains(services, s => s.ServiceType == typeof(ISourceInventaire));
         Assert.Contains(services, s => s.ServiceType == typeof(IPublicateurMesures));
-        Assert.Equal(2, services.Count(s => s.ServiceType == typeof(IActionApresRotation)));
+        Assert.Equal(typeof(RedeploiementEcs), Assert.Single(services, s => s.ServiceType == typeof(IActionApresRotation)).ImplementationType);
     }
 
     private sealed class KmsEssai(ECDsa cle) : AmazonKeyManagementServiceClient(_anonyme, RegionEndpoint.CACentral1)
@@ -194,26 +162,6 @@ public sealed class AdaptateursAwsTests : IDisposable
         {
             Requetes.Add(request);
             return Task.FromResult(new PutMetricDataResponse());
-        }
-    }
-
-    private sealed class AcmEssai() : AmazonCertificateManagerClient(_anonyme, RegionEndpoint.CACentral1)
-    {
-        public string? CertificateArn { get; private set; }
-
-        public string Certificat { get; private set; } = string.Empty;
-
-        public string Cle { get; private set; } = string.Empty;
-
-        public string Chaine { get; private set; } = string.Empty;
-
-        public override Task<ImportCertificateResponse> ImportCertificateAsync(ImportCertificateRequest request, CancellationToken cancellationToken = default)
-        {
-            CertificateArn = request.CertificateArn;
-            Certificat = System.Text.Encoding.ASCII.GetString(request.Certificate.ToArray());
-            Cle = System.Text.Encoding.ASCII.GetString(request.PrivateKey.ToArray());
-            Chaine = System.Text.Encoding.ASCII.GetString(request.CertificateChain.ToArray());
-            return Task.FromResult(new ImportCertificateResponse { CertificateArn = request.CertificateArn });
         }
     }
 
