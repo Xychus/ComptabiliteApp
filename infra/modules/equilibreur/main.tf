@@ -52,8 +52,10 @@ resource "aws_acm_certificate_validation" "api" {
 }
 
 resource "aws_security_group" "equilibreur" {
-  name        = local.nom
-  description = "Equilibreur interne : HTTPS depuis le VPC Link d API Gateway, HTTPS vers les services"
+  name = local.nom
+  # Description d'origine (phase 8) : la modifier remplacerait le groupe, attaché à l'équilibreur.
+  # Seul le VPC Link y entre désormais (règle posée par le module apigateway).
+  description = "Equilibreur interne : HTTPS depuis le VPC, HTTPS vers les services"
   vpc_id      = var.vpc_id
 
   tags = {
