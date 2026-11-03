@@ -27,6 +27,7 @@ public sealed class KeycloakDeProduction : IAsyncLifetime
 
     public KeycloakDeProduction()
     {
+        _sonde = ConfianceRacinePki.CreerGestionnaire(Pki.Racine.ExportCertificatePem())!;
         var (chaine, cle) = Pki.Serveur("localhost");
         Conteneur = new ContainerBuilder(Image)
             // Même utilisateur que la sentinelle, groupe root (image prévue pour un uid arbitraire).
@@ -52,11 +53,14 @@ public sealed class KeycloakDeProduction : IAsyncLifetime
                 .ForPort(9000)
                 .ForPath("/health/ready")
                 .UsingTls()
-                .UsingHttpMessageHandler(new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator })))
+                .UsingHttpMessageHandler(_sonde)))
             .Build();
     }
 
     public PkiDeTest Pki { get; } = new();
+
+    // Sonde de démarrage : interface de gestion en HTTPS, certificat de la PKI de test.
+    private readonly SocketsHttpHandler _sonde;
 
     public IContainer Conteneur { get; }
 
@@ -67,6 +71,7 @@ public sealed class KeycloakDeProduction : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await Conteneur.DisposeAsync().ConfigureAwait(false);
+        _sonde.Dispose();
         Pki.Dispose();
     }
 }
@@ -91,7 +96,8 @@ public sealed class KeycloakMtlsTests(KeycloakDeProduction keycloak) : IClassFix
         var valide = await Validateur().ValiderAsync(jeton, TestContext.Current.CancellationToken);
         Assert.NotNull(valide);
         Assert.Equal("ledger-exemple-ecriture", valide.ClientId);
-        Assert.Superset(new HashSet<string> { "ledger:read", "ledger:write" }, (HashSet<string>)valide.Portees);
+        Assert.Contains("ledger:read", valide.Portees);
+        Assert.Contains("ledger:write", valide.Portees);
     }
 
     [Fact]
