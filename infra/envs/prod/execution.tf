@@ -211,10 +211,12 @@ module "command_api" {
   version_collecteur                    = local.commun_services.version_collecteur
   groupe_journaux_metriques             = local.commun_services.groupe_journaux_metriques
   port_https                            = 8443
-  groupe_cible_arn                      = module.equilibreur.groupes_cibles["command-api"]
-  groupe_securite_equilibreur           = module.equilibreur.groupe_securite
-  nombre_taches                         = var.services.taches_minimum
-  mise_a_echelle                        = { maximum = var.services.taches_maximum }
+  equilibreur = {
+    groupe_cible_arn = module.equilibreur.groupes_cibles["command-api"]
+    groupe_securite  = module.equilibreur.groupe_securite
+  }
+  nombre_taches  = var.services.taches_minimum
+  mise_a_echelle = { maximum = var.services.taches_maximum }
 
   environnement = merge(local.postgres_iam, {
     ConnectionStrings__Ledger         = local.chaine_connexion["ledger_app"]
@@ -255,10 +257,12 @@ module "query_api" {
   version_collecteur                    = local.commun_services.version_collecteur
   groupe_journaux_metriques             = local.commun_services.groupe_journaux_metriques
   port_https                            = 8443
-  groupe_cible_arn                      = module.equilibreur.groupes_cibles["query-api"]
-  groupe_securite_equilibreur           = module.equilibreur.groupe_securite
-  nombre_taches                         = var.services.taches_minimum
-  mise_a_echelle                        = { maximum = var.services.taches_maximum }
+  equilibreur = {
+    groupe_cible_arn = module.equilibreur.groupes_cibles["query-api"]
+    groupe_securite  = module.equilibreur.groupe_securite
+  }
+  nombre_taches  = var.services.taches_minimum
+  mise_a_echelle = { maximum = var.services.taches_maximum }
 
   environnement = merge(local.postgres_iam, {
     ConnectionStrings__Ledger         = local.chaine_connexion["ledger_query"]

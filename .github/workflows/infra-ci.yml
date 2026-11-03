@@ -61,10 +61,11 @@ jobs:
             echo "::endgroup::"
           done
 
-      # Fournisseur simulé (mock_provider) : aucun appel AWS.
+      # Fournisseur simulé (mock_provider) : aucun appel AWS. Les environnements ont un test de plan
+      # complet : les attributs calculés y restent inconnus, comme au premier apply réel.
       - name: terraform test
         run: |
-          for d in infra/bootstrap infra/modules/*/; do
+          for d in infra/bootstrap infra/modules/*/ infra/envs/dev infra/envs/prod; do
             echo "::group::$d"
             terraform -chdir="$d" test -no-color
             echo "::endgroup::"

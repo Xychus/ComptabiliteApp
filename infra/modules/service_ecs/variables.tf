@@ -121,16 +121,17 @@ variable "port_https" {
   default     = null
 }
 
-variable "groupe_cible_arn" {
-  description = "Groupe cible de l'équilibreur de charge (null : aucun)."
-  type        = string
-  default     = null
-}
-
-variable "groupe_securite_equilibreur" {
-  description = "Groupe de sécurité de l'équilibreur de charge, autorisé vers le port HTTPS du service."
-  type        = string
-  default     = null
+variable "equilibreur" {
+  description = <<-EOT
+    Équilibreur de charge devant le service (null : aucun). Un objet plutôt que deux valeurs
+    nullables : sa présence est connue au plan même quand ses identifiants ne le sont pas encore
+    (premier apply), ce qu'exigent count et les blocs dynamiques.
+  EOT
+  type = object({
+    groupe_cible_arn = string
+    groupe_securite  = string
+  })
+  default = null
 }
 
 variable "sorties" {

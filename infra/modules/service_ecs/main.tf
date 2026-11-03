@@ -123,20 +123,20 @@ resource "aws_vpc_security_group_ingress_rule" "entree_destination" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "depuis_equilibreur" {
-  count = var.groupe_securite_equilibreur != null ? 1 : 0
+  count = var.equilibreur != null ? 1 : 0
 
   security_group_id            = aws_security_group.service.id
   description                  = "HTTPS (Kestrel, PKI interne) depuis l equilibreur de charge"
   ip_protocol                  = "tcp"
   from_port                    = var.port_https
   to_port                      = var.port_https
-  referenced_security_group_id = var.groupe_securite_equilibreur
+  referenced_security_group_id = var.equilibreur.groupe_securite
 }
 
 resource "aws_vpc_security_group_egress_rule" "equilibreur_vers_service" {
-  count = var.groupe_securite_equilibreur != null ? 1 : 0
+  count = var.equilibreur != null ? 1 : 0
 
-  security_group_id            = var.groupe_securite_equilibreur
+  security_group_id            = var.equilibreur.groupe_securite
   description                  = "HTTPS vers ${var.nom}"
   ip_protocol                  = "tcp"
   from_port                    = var.port_https
@@ -311,7 +311,7 @@ resource "aws_ecs_service" "service" {
 
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
-  health_check_grace_period_seconds  = var.groupe_cible_arn != null ? 60 : null
+  health_check_grace_period_seconds  = var.equilibreur != null ? 60 : null
 
   deployment_circuit_breaker {
     enable   = true
@@ -325,10 +325,10 @@ resource "aws_ecs_service" "service" {
   }
 
   dynamic "load_balancer" {
-    for_each = var.groupe_cible_arn != null ? [1] : []
+    for_each = var.equilibreur != null ? [1] : []
 
     content {
-      target_group_arn = var.groupe_cible_arn
+      target_group_arn = var.equilibreur.groupe_cible_arn
       container_name   = var.nom
       container_port   = var.port_https
     }

@@ -40,8 +40,11 @@ variables {
   cle_kms_xray_arn                      = "arn:aws:kms:ca-central-1:111122223333:key/0b6f8a1e-8888-4a5b-9c3d-0123456789ab"
   frontiere_permissions_arn             = "arn:aws:iam::111122223333:policy/bootstrap/ledger-frontiere-charges"
   port_https                            = 8443
-  groupe_cible_arn                      = "arn:aws:elasticloadbalancing:ca-central-1:111122223333:targetgroup/ledger-dev-query/abc"
-  groupe_securite_equilibreur           = "sg-0000000000000dddd"
+
+  equilibreur = {
+    groupe_cible_arn = "arn:aws:elasticloadbalancing:ca-central-1:111122223333:targetgroup/ledger-dev-query/abc"
+    groupe_securite  = "sg-0000000000000dddd"
+  }
 
   environnement = {
     ConnectionStrings__Lecture = "Host=ledger-dev.cluster-abc.ca-central-1.rds.amazonaws.com;Database=ledger;Username=ledger_query;SSL Mode=VerifyFull"
