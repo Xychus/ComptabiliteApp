@@ -387,8 +387,8 @@ resource "aws_iam_policy" "frontiere" {
           "ec2:DeleteNetworkInterface", "ec2:Describe*", "ec2:UnassignPrivateIpAddresses",
           "ecr:BatchCheckLayerAvailability", "ecr:BatchGetImage", "ecr:GetAuthorizationToken", "ecr:GetDownloadUrlForLayer",
           "kms:Decrypt", "kms:DescribeKey", "kms:Encrypt", "kms:GenerateDataKey*", "kms:ReEncrypt*",
-          # Phase 8 — Lambda PKI : signature par l'intermédiaire, réimport ACM, redéploiement, inventaire.
-          "acm:ImportCertificate", "ecs:DescribeServices", "ecs:UpdateService", "kms:GetPublicKey", "kms:Sign",
+          # Phase 8 — Lambda PKI : signature par l'intermédiaire, redéploiement, inventaire.
+          "ecs:DescribeServices", "ecs:UpdateService", "kms:GetPublicKey", "kms:Sign",
           "secretsmanager:ListSecrets",
           # Phase 8 — agent ECS des brokers Kafka (instances EC2) et tâche planifiée de purge.
           "ecs:DeregisterContainerInstance", "ecs:DiscoverPollEndpoint", "ecs:Poll", "ecs:RegisterContainerInstance",

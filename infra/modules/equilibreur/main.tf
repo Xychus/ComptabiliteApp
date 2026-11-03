@@ -1,35 +1,26 @@
-# Équilibreur de charge applicatif interne (phase 8, point P2 tranché en phase 9) : HTTPS 443,
-# politique TLS 1.3 privilégiée (1.2 au minimum), certificat de la PKI interne importé dans ACM et
-# réimporté sous le même ARN à chaque rotation par la Lambda PKI (ADR 0010). Cibles en HTTPS vers
-# Kestrel (8443). Routage par méthode : lectures (GET, HEAD) vers l'API de requête, écritures vers
-# l'API de commandes ; les chemins /v1 des deux contrats se recouvrent (ADR 0014, 0019).
+# Équilibreur de charge applicatif interne (phase 8, ADR 0031) : HTTPS 443, politique TLS 1.3
+# privilégiée (1.2 au minimum), certificat ACM public validé par DNS dans la zone publique du
+# compte : API Gateway n'accepte vers une intégration privée qu'un certificat d'autorité publique.
+# Seul le VPC Link d'API Gateway y entre (règle posée par le module apigateway). Cibles en HTTPS
+# vers Kestrel (8443, PKI interne). Routage par méthode : lectures (GET, HEAD) vers l'API de
+# requête, écritures vers l'API de commandes ; les chemins /v1 des deux contrats se recouvrent
+# (ADR 0014, 0019).
 
 locals {
   nom      = "${var.prefixe}-api"
-  nom_hote = "api.${var.zone_interne.domaine}"
+  nom_hote = "api.${var.zone_publique.domaine}"
 }
 
-# Certificat de démarrage, autosigné, remplacé par celui de la PKI à la première rotation (la Lambda
-# réimporte sous le même ARN ; Terraform ignore ensuite le contenu). Aucun client ne lui fait confiance.
-resource "tls_private_key" "demarrage" {
-  algorithm   = "ECDSA"
-  ecdsa_curve = "P256"
-}
-
-resource "tls_self_signed_cert" "demarrage" {
-  private_key_pem       = tls_private_key.demarrage.private_key_pem
-  validity_period_hours = 720
-  allowed_uses          = ["digital_signature", "server_auth"]
-  dns_names             = [local.nom_hote]
-
-  subject {
-    common_name = "api"
-  }
-}
-
+# Seul l'enregistrement de validation est publié dans la zone publique : aucun enregistrement
+# public ne désigne l'équilibreur, joint par API Gateway à travers le VPC Link (integration_target).
 resource "aws_acm_certificate" "api" {
-  private_key      = tls_private_key.demarrage.private_key_pem
-  certificate_body = tls_self_signed_cert.demarrage.cert_pem
+  domain_name       = local.nom_hote
+  validation_method = "DNS"
+  key_algorithm     = "EC_prime256v1"
+
+  options {
+    certificate_transparency_logging_preference = "ENABLED"
+  }
 
   tags = {
     Name = local.nom
@@ -37,13 +28,32 @@ resource "aws_acm_certificate" "api" {
 
   lifecycle {
     create_before_destroy = true
-    ignore_changes        = [private_key, certificate_body, certificate_chain]
   }
+}
+
+# Un seul nom dans le certificat : une seule option de validation, connue seulement à l'apply.
+locals {
+  validation = one(aws_acm_certificate.api.domain_validation_options)
+}
+
+resource "aws_route53_record" "validation" {
+  zone_id         = var.zone_publique.id
+  name            = local.validation.resource_record_name
+  type            = local.validation.resource_record_type
+  records         = [local.validation.resource_record_value]
+  ttl             = 300
+  allow_overwrite = true
+}
+
+# Attend l'émission : exige la délégation de la zone publique (runbook phase-09-point-d-arret).
+resource "aws_acm_certificate_validation" "api" {
+  certificate_arn         = aws_acm_certificate.api.arn
+  validation_record_fqdns = [aws_route53_record.validation.fqdn]
 }
 
 resource "aws_security_group" "equilibreur" {
   name        = local.nom
-  description = "Equilibreur interne : HTTPS depuis le VPC, HTTPS vers les services"
+  description = "Equilibreur interne : HTTPS depuis le VPC Link d API Gateway, HTTPS vers les services"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -51,18 +61,9 @@ resource "aws_security_group" "equilibreur" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "https_depuis_vpc" {
-  security_group_id = aws_security_group.equilibreur.id
-  description       = "HTTPS depuis le VPC"
-  ip_protocol       = "tcp"
-  from_port         = 443
-  to_port           = 443
-  cidr_ipv4         = var.cidr_vpc
-}
-
 resource "aws_lb" "api" {
   #checkov:skip=CKV_AWS_91:Les journaux d'accès d'un ALB n'acceptent que le chiffrement SSE-S3 (clé gérée par AWS), interdit par CLAUDE.md ; traces X-Ray et journaux des services en tiennent lieu (à revoir en phase 11).
-  #checkov:skip=CKV2_AWS_28:Équilibreur interne, derrière API Gateway privée (phase 9) : WAF porté par API Gateway.
+  #checkov:skip=CKV2_AWS_28:Équilibreur interne joint seulement par le VPC Link d'API Gateway privée (ADR 0031) ; WAF à revoir en phase 11.
   #checkov:skip=CKV2_AWS_20:Aucun écouteur HTTP : l'équilibreur n'écoute qu'en HTTPS.
   name                       = local.nom
   internal                   = true
@@ -100,7 +101,7 @@ resource "aws_lb_listener" "https" {
   # TLS 1.3 négocié en priorité, 1.2 accepté : les clients d'API Gateway (VPC Link, phase 9) ne
   # garantissent pas TLS 1.3 vers une cible privée (CLAUDE.md, plancher justifié).
   ssl_policy      = "ELBSecurityPolicy-TLS13-1-2-Res-2021-06"
-  certificate_arn = aws_acm_certificate.api.arn
+  certificate_arn = aws_acm_certificate_validation.api.certificate_arn
 
   default_action {
     type             = "forward"
@@ -121,18 +122,6 @@ resource "aws_lb_listener_rule" "lectures" {
   action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.cible["query-api"].arn
-  }
-}
-
-resource "aws_route53_record" "api" {
-  zone_id = var.zone_interne.id
-  name    = local.nom_hote
-  type    = "A"
-
-  alias {
-    name                   = aws_lb.api.dns_name
-    zone_id                = aws_lb.api.zone_id
-    evaluate_target_health = true
   }
 }
 

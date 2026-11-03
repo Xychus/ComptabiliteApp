@@ -60,6 +60,11 @@ run "aucun_usage_cryptographique_hors_service" {
   }
 
   assert {
+    condition     = toset([for s in jsondecode(aws_kms_key.cle["lambda"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "UsageViaService"][0]) == toset(["lambda.ca-central-1.amazonaws.com", "s3.ca-central-1.amazonaws.com"])
+    error_message = "La clé lambda n'est utilisable que via Lambda et S3 (paquets de déploiement)."
+  }
+
+  assert {
     condition     = [for s in jsondecode(aws_kms_key.cle["kafka"].policy).Statement : s.Condition.StringEquals["kms:ViaService"] if s.Sid == "UsageViaService"][0] == ["ec2.ca-central-1.amazonaws.com"]
     error_message = "La clé kafka n'est utilisable que via EC2 (volumes EBS des brokers)."
   }

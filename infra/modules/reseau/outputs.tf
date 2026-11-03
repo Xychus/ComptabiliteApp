@@ -35,3 +35,8 @@ output "zone_interne" {
     domaine = aws_route53_zone.interne.name
   }
 }
+
+output "point_de_terminaison_execute_api" {
+  description = "Point de terminaison execute-api : seule origine admise par la politique de l'API privée (ADR 0031)."
+  value       = aws_vpc_endpoint.interface["execute-api"].id
+}

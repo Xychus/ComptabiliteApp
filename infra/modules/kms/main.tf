@@ -19,7 +19,7 @@ locals {
     logs         = { description = "CloudWatch Logs : journaux applicatifs et journaux de flux VPC", services = [] }
     ecr          = { description = "ECR : images des services", services = ["ecr"] }
     ecs          = { description = "ECS Fargate : stockage éphémère des tâches", services = [] }
-    lambda       = { description = "Lambda : variables d'environnement", services = ["lambda"] }
+    lambda       = { description = "Lambda : variables d'environnement et paquets de déploiement (S3, ADR 0032)", services = ["lambda", "s3"] }
     ssm          = { description = "SSM Parameter Store : paramètres SecureString", services = ["ssm"] }
     xray         = { description = "X-Ray : traces des services (phase 8)", services = ["xray"] }
   }
