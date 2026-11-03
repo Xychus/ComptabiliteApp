@@ -27,3 +27,12 @@ output "frontiere_permissions_arn" {
   description = "Frontière de permissions imposée aux rôles créés par le pipeline."
   value       = aws_iam_policy.frontiere.arn
 }
+
+output "zone_publique" {
+  description = "Zone DNS publique du compte : nom, identifiant et serveurs de noms à déléguer dans le domaine parent."
+  value = {
+    nom              = aws_route53_zone.publique.name
+    id               = aws_route53_zone.publique.zone_id
+    serveurs_de_noms = aws_route53_zone.publique.name_servers
+  }
+}

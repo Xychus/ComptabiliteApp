@@ -74,3 +74,14 @@ variable "conservation_versions_etat_jours" {
   type        = number
   default     = 365
 }
+
+variable "domaine_parent" {
+  description = "Domaine public parent (ADR 0031) : la zone du compte est « <environnement>.<domaine_parent> », déléguée par un humain."
+  type        = string
+  default     = "aws.usinageone.ca"
+
+  validation {
+    condition     = can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?[.])+[a-z]{2,}$", var.domaine_parent))
+    error_message = "Un nom de domaine en minuscules, sans point final (ex. aws.usinageone.ca)."
+  }
+}

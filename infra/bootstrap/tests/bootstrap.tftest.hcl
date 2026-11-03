@@ -194,3 +194,27 @@ run "refuse_un_environnement_inconnu" {
 
   expect_failures = [var.environnement]
 }
+
+run "zone_publique_du_compte_protegee" {
+  command = apply
+
+  assert {
+    condition     = aws_route53_zone.publique.name == "dev.aws.usinageone.ca" && !aws_route53_zone.publique.force_destroy
+    error_message = "Zone publique <environnement>.aws.usinageone.ca, jamais supprimée avec ses enregistrements (ADR 0031)."
+  }
+
+  assert {
+    condition     = output.zone_publique.nom == "dev.aws.usinageone.ca"
+    error_message = "Le nom de la zone est exposé pour la délégation."
+  }
+}
+
+run "domaine_parent_invalide_refuse" {
+  command = plan
+
+  variables {
+    domaine_parent = "Usinageone.ca."
+  }
+
+  expect_failures = [var.domaine_parent]
+}
