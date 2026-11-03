@@ -71,7 +71,6 @@ module "pki" {
       "command-api"        = { nom_commun = "command-api", usage = "serveur", noms_dns = ["command-api.${local.domaine_interne}"], services = ["command-api"] }
       "query-api"          = { nom_commun = "query-api", usage = "serveur", noms_dns = ["query-api.${local.domaine_interne}"], services = ["query-api"] }
       "keycloak"           = { nom_commun = "keycloak", usage = "serveur", noms_dns = [module.keycloak.nom_hote], services = ["keycloak"] }
-      "api"                = { nom_commun = "api", usage = "serveur", noms_dns = [module.equilibreur.nom_hote], certificat_acm_arn = module.equilibreur.certificat_acm_arn }
     },
   )
 
@@ -190,10 +189,48 @@ module "equilibreur" {
 
   prefixe                = local.prefixe
   vpc_id                 = module.reseau.vpc_id
-  cidr_vpc               = module.reseau.cidr_vpc
   sous_reseaux           = module.reseau.sous_reseaux_applications
-  zone_interne           = module.reseau.zone_interne
+  zone_publique          = { id = data.aws_route53_zone.publique.zone_id, domaine = data.aws_route53_zone.publique.name }
   protection_suppression = var.protection_suppression
+}
+
+# Zone publique du compte, créée par l'amorçage (ADR 0031) : validation du certificat de l'équilibreur.
+data "aws_route53_zone" "publique" {
+  name         = "${local.environnement}.${var.domaine_parent}"
+  private_zone = false
+}
+
+# Entrée de l'API (ADR 0031) : rien tant que le paquet de l'autorizer n'est pas publié.
+module "apigateway" {
+  source = "../../modules/apigateway"
+  count  = var.version_autorizer != null ? 1 : 0
+
+  prefixe                               = local.prefixe
+  region                                = var.region
+  compte_aws                            = var.compte_aws
+  vpc_id                                = module.reseau.vpc_id
+  sous_reseaux                          = module.reseau.sous_reseaux_applications
+  groupe_securite_points_de_terminaison = module.reseau.groupe_securite_points_de_terminaison
+  point_de_terminaison_execute_api      = module.reseau.point_de_terminaison_execute_api
+  certificat_racine_pki_pem             = local.inter_pem != null ? local.racine_pem : null
+  paquet                                = { bucket = module.artefacts.nom_bucket, version = var.version_autorizer }
+  plans_usage                           = var.plans_usage
+  cle_kms_journaux_arn                  = module.kms.arns["logs"]
+  cle_kms_lambda_arn                    = module.kms.arns["lambda"]
+  cle_kms_ssm_arn                       = module.kms.arns["ssm"]
+  frontiere_permissions_arn             = local.arn_frontiere
+
+  equilibreur = {
+    arn             = module.equilibreur.arn
+    groupe_securite = module.equilibreur.groupe_securite
+    nom_hote        = module.equilibreur.nom_hote
+  }
+
+  keycloak = {
+    url_realm       = module.keycloak.url_realm
+    groupe_securite = module.keycloak.groupe_securite
+    port            = 8443
+  }
 }
 
 module "observabilite" {

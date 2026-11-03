@@ -1,6 +1,7 @@
 name: images
 
-# Publication minimale des images dans ECR (phase 8, ADR 0028) : nos images construites ici,
+# Publication minimale des images dans ECR (phase 8, ADR 0028) et des paquets zip des Lambda
+# dans le bucket des artefacts (phase 9, ADR 0032) : nos images construites ici,
 # étiquetées par la version SemVer exacte du composant (version.txt, release-please) ; les images
 # officielles tierces copiées telles quelles (même empreinte, étiquette exacte de l'éditeur).
 # Les dépôts sont IMMUTABLE : une étiquette déjà publiée n'est jamais remplacée, elle est sautée.
@@ -76,6 +77,33 @@ jobs:
           migrations src/Tools/Ledger.Migrations/Dockerfile src/Command/version.txt
           pki-lambda src/Pki/Ledger.Pki.Lambda/Dockerfile src/Pki/version.txt
           pki-sentinelle src/Pki/Ledger.Pki.Sentinelle/Dockerfile src/Pki/version.txt
+          LISTE
+
+      # Paquets zip des Lambda à runtime géré (ADR 0032) : construits ici, déposés dans le bucket
+      # des artefacts sous <composant>/<version>.zip. Le bucket refuse toute écriture sans
+      # If-None-Match : une version publiée n'est jamais remplacée.
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Paquets Lambda
+        run: |
+          set -euo pipefail
+          bucket="ledger-dev-artefacts-${COMPTE_AWS}-${REGION_AWS}"
+          while read -r composant projet version; do
+            etiquette="$(tr -d '[:space:]' < "$version")"
+            cle="$composant/$etiquette.zip"
+            if aws s3api head-object --bucket "$bucket" --key "$cle" > /dev/null 2>&1; then
+              echo "s3://$bucket/$cle déjà publié : sauté."
+              continue
+            fi
+            sortie="$RUNNER_TEMP/$composant"
+            dotnet publish "$projet" -c Release -r linux-x64 --self-contained false -o "$sortie"
+            (cd "$sortie" && zip -qr -X "$RUNNER_TEMP/$composant.zip" .)
+            aws s3api put-object --bucket "$bucket" --key "$cle" --body "$RUNNER_TEMP/$composant.zip" --if-none-match '*' > /dev/null
+            echo "s3://$bucket/$cle publié." >> "$GITHUB_STEP_SUMMARY"
+          done <<'LISTE'
+          authorizer src/Authorizer/Ledger.Authorizer/Ledger.Authorizer.csproj src/Authorizer/version.txt
           LISTE
 
       # Copies des images officielles (aucune sortie Internet depuis le VPC, ADR 0023) : même

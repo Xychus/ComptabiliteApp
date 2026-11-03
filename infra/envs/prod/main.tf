@@ -73,6 +73,16 @@ module "archive" {
   role_plan_arn = local.arn_role_plan
 }
 
+# Paquets zip des Lambda à runtime géré (autorizer, ADR 0032), publiés par images.yml.
+module "artefacts" {
+  source = "../../modules/artefacts"
+
+  prefixe     = local.prefixe
+  compte_aws  = var.compte_aws
+  region      = var.region
+  cle_kms_arn = module.kms.arns["lambda"]
+}
+
 module "ecs" {
   source = "../../modules/ecs"
 
