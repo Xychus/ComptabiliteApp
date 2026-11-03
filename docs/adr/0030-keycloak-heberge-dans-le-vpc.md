@@ -17,10 +17,15 @@ authentifiés par certificat de la PKI.
 ## Décision
 
 1. **Keycloak sur ECS Fargate dans le VPC** : image officielle `quay.io/keycloak/keycloak:26.8`
-   copiée dans ECR par `images.yml` (ADR 0028), sous-réseaux `applications`, nom
-   `keycloak.<prefixe>.internal`. Aucune sortie Internet, aucun amendement de l'ADR 0023.
-2. **HTTPS par un certificat serveur de la PKI** (ADR 0010), fichiers PEM installés par la
-   sentinelle (modèle de Debezium) et rechargés par Keycloak (`https-certificates-reload-period`) ;
+   copiée dans ECR par `images.yml` (ADR 0028, étiquette exacte `26.8.1`), sous-réseaux
+   `applications`, nom `keycloak.idp.<prefixe>.internal` (espace de noms Cloud Map dédié, comme
+   Kafka), port 8443 : émetteur `https://keycloak.idp.<prefixe>.internal:8443/realms/ledger`,
+   fixé par `KC_HOSTNAME`. Aucune sortie Internet, aucun amendement de l'ADR 0023.
+2. **HTTPS par un certificat serveur de la PKI** (ADR 0010), installé par la sentinelle au
+   démarrage de la tâche (modèle de Debezium) : `keystore.pem` (clé puis chaîne) sert à la fois de
+   certificat et de clé, `truststore.pem` (racine) de magasin de confiance du mTLS. Keycloak tourne
+   avec l'utilisateur de la sentinelle (`1001:0`, fichiers en `0600`). Après chaque renouvellement,
+   la Lambda redéploie le service (nouvelle tâche saine avant l'arrêt de l'ancienne).
    `https-protocols=TLSv1.3` (tous les clients sont des .NET 10 et des Lambda .NET 10, qui
    négocient TLS 1.3).
 3. **Clients internes authentifiés par mTLS** : `https-client-auth=request`, magasin de confiance =
@@ -28,10 +33,11 @@ authentifiés par certificat de la PKI.
    avec l'authentificateur X.509 (DN du sujet attendu `CN=<client>`) et un certificat `client` de
    la PKI (7 jours, renouvelé tous les 5 jours). **Aucun secret client** à stocker ni à renouveler.
    `azp` du jeton = identifiant du client = `actor` enregistré dans `events`.
-4. **Realm importé au démarrage** (`start --import-realm`, fichier `ledger-realm.json` versionné
-   et monté dans l'image par la définition de tâche, valeurs d'environnement par substitution
-   `${…}`) : scopes, mapper d'audience, clients, durée des jetons (300 s), algorithme de signature
-   par défaut **ES256**. Le module Terraform `keycloak/keycloak` du plan est abandonné : le runner
+4. **Realm importé au démarrage** (`start --import-realm`) : `infra/keycloak/ledger-realm.json`,
+   transmis en variable d'environnement de la tâche et écrit dans `/opt/keycloak/data/import`
+   juste avant le lancement. Scopes, mapper d'audience, clients `client-x509`
+   (`x509.subjectdn` = `CN=<client>`, comparaison exacte), durée des jetons (300 s), algorithme
+   de signature par défaut **ES256**. Le module Terraform `keycloak/keycloak` du plan est abandonné : le runner
    ne joint pas Keycloak.
 5. **Aucun compte d'administration permanent** : aucune option `bootstrap-admin-*` ; console non
    exposée hors du VPC. En cas de besoin, la commande `bootstrap-admin` est lancée en tâche
@@ -57,6 +63,11 @@ authentifiés par certificat de la PKI.
 - Les jetons ne sont pas liés au certificat (RFC 8705) : API Gateway privée ne vérifie pas la
   liaison. La possession d'un jeton volé reste utile 5 minutes au plus.
 - Une nouvelle surface : la Lambda de rotation administre aussi le rôle `keycloak`.
+
+- Configuration éprouvée par un test d'intégration contre `quay.io/keycloak/keycloak:26.8` en mode
+  `start` (`KeycloakMtlsTests`) : fichiers de la sentinelle, utilisateur `1001:0`, TLS 1.3, mTLS,
+  realm importé, aucun compte d'administration ; jeton accepté par l'autorizer ; refus sans
+  certificat, avec le certificat d'un autre client ou d'une autre PKI.
 
 ## Options écartées
 
