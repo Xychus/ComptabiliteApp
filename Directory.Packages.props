@@ -41,7 +41,7 @@
 
   <ItemGroup Label="AWS (PKI interne ADR 0010, authentification IAM Aurora)">
     <PackageVersion Include="AWSSDK.CloudWatch" Version="4.0.107.1" />
-    <PackageVersion Include="AWSSDK.ECS" Version="4.0.108.1" />
+    <PackageVersion Include="AWSSDK.ECS" Version="4.0.110.2" />
     <PackageVersion Include="AWSSDK.KeyManagementService" Version="4.0.100.20" />
     <PackageVersion Include="AWSSDK.RDS" Version="4.0.107.1" />
     <PackageVersion Include="AWSSDK.SecretsManager" Version="4.0.100.21" />
